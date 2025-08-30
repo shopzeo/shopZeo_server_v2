@@ -1,0 +1,18 @@
+[
+  {
+    "timestamp": "2025-08-29T19:47:01.565Z",
+    "identifier": "test@example.com",
+    "type": "email",
+    "otp": "230882",
+    "method": "console",
+    "expiresAt": "2025-08-29T19:57:01.565Z"
+  },
+  {
+    "timestamp": "2025-08-29T19:47:01.583Z",
+    "identifier": "test@example.com",
+    "type": "email",
+    "otp": "230882",
+    "method": "email_template",
+    "expiresAt": "2025-08-29T19:57:01.583Z"
+  }
+]

@@ -70,31 +70,67 @@ exports.getCategories = async (req, res) => {
       ];
     }
     
-    if (level) {
-      whereClause.level = level;
+    // Only add level filter if the level field exists in the database
+    if (level && level !== '') {
+      try {
+        whereClause.level = level;
+      } catch (error) {
+        console.log('Level field not available in database schema');
+      }
     }
     
     if (parentId !== '') {
       whereClause.parent_id = parentId === 'null' ? null : parentId;
     }
     
-    // Get categories with count
+    // Get categories with count and include subcategories
     const { count, rows: categories } = await Category.findAndCountAll({
       where: whereClause,
       limit: parseInt(limit),
       offset: parseInt(offset),
-      order: [['sort_order', 'ASC'], ['createdAt', 'DESC']]
+      order: [['sort_order', 'ASC'], ['createdAt', 'DESC']],
+      include: [
+        {
+          model: require('../models/SubCategory'),
+          as: 'subCategories',
+          attributes: ['id', 'name', 'slug', 'priority', 'is_active', 'meta_title', 'meta_description', 'meta_keywords', 'createdAt', 'updatedAt'],
+          where: { is_active: true },
+          required: false
+        }
+      ]
     });
     
-    // Format image URLs for all categories
+    // Format categories and rename subCategories to subcategories
     const formattedCategories = categories.map(category => {
       const categoryData = category.toJSON();
+      
+      // Format main category image
       if (categoryData.image) {
-        // Only format if it's a relative path, not already a full URL
         if (!categoryData.image.startsWith('http')) {
           categoryData.image = config.getImageUrl(categoryData.image);
         }
       }
+      
+      // Rename subCategories to subcategories and format the data
+      if (categoryData.subCategories) {
+        categoryData.subcategories = categoryData.subCategories.map(subCat => ({
+          id: subCat.id,
+          name: subCat.name,
+          slug: subCat.slug,
+          priority: subCat.priority,
+          is_active: subCat.is_active,
+          meta_title: subCat.meta_title,
+          meta_description: subCat.meta_description,
+          meta_keywords: subCat.meta_keywords,
+          createdAt: subCat.createdAt,
+          updatedAt: subCat.updatedAt
+        }));
+        // Remove the original subCategories field
+        delete categoryData.subCategories;
+      } else {
+        categoryData.subcategories = [];
+      }
+      
       return categoryData;
     });
     

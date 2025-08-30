@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
-const { Admin } = require('../models');
+const { sequelize } = require('../models');
+const Admin = require('../models/Admin')(sequelize);
 const { generateCaptcha, validateCaptcha } = require('../utils/captcha');
 
 // Store captcha sessions (in production, use Redis)
@@ -21,6 +22,7 @@ exports.generateCaptcha = async (req, res) => {
       success: true,
       data: {
         sessionId,
+        text: captcha.text,
         image: captcha.image,
         expiresIn: 300 // 5 minutes in seconds
       }

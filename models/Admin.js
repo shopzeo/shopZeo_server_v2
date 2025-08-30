@@ -30,21 +30,26 @@ module.exports = (sequelize) => {
     },
     isActive: {
       type: DataTypes.BOOLEAN,
-      defaultValue: true
+      defaultValue: true,
+      field: 'isActive'
     },
     lastLogin: {
-      type: DataTypes.DATE
+      type: DataTypes.DATE,
+      field: 'lastLogin'
     },
     loginAttempts: {
       type: DataTypes.INTEGER,
-      defaultValue: 0
+      defaultValue: 0,
+      field: 'loginAttempts'
     },
     lockedUntil: {
-      type: DataTypes.DATE
+      type: DataTypes.DATE,
+      field: 'lockedUntil'
     }
   }, {
     tableName: 'admins',
     timestamps: true,
+    underscored: false,
     hooks: {
       beforeCreate: async (admin) => {
         if (admin.password) {

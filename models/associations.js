@@ -85,10 +85,8 @@ Product.hasMany(Like, { foreignKey: 'likeableId', constraints: false, scope: { l
 // Category Associations
 Category.hasMany(ProductCategory, { foreignKey: 'categoryId', as: 'productCategories' });
 Category.belongsToMany(Product, { through: ProductCategory, as: 'products' });
-Category.hasMany(Category, { foreignKey: 'parentId', as: 'children' });
-Category.belongsTo(Category, { foreignKey: 'parentId', as: 'parent' });
 
-// SubCategory associations
+// SubCategory associations - This is the main relationship we want
 Category.hasMany(SubCategory, { as: 'subCategories', foreignKey: 'categoryId' });
 SubCategory.belongsTo(Category, { as: 'category', foreignKey: 'categoryId' });
 
