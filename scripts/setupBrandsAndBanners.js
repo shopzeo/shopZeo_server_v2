@@ -3,10 +3,10 @@ const fs = require('fs').promises;
 const path = require('path');
 
 const dbConfig = {
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'shopzeo_db',
+  host: process.env.DB_HOST || 'localhost',
+  user: process.env.DB_USER || 'root',
+  password: process.env.DB_PASSWORD || '',
+  database: process.env.DB_NAME || 'shopzeo_db',
   multipleStatements: false
 };
 

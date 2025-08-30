@@ -10,8 +10,8 @@ const config = {
   LIVE_API_URL: process.env.LIVE_API_URL || 'https://linkiin.in/api',
   
   // Cross-Origin Configuration
-  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000',
-  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['http://localhost:3000', 'https://linkiin.in'],
+  CORS_ORIGIN: process.env.CORS_ORIGIN || 'https://linkiin.in',
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://linkiin.in'],
   
   // Database Configuration
   DB_HOST: process.env.DB_HOST || 'localhost',

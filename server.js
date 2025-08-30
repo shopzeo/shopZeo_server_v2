@@ -12,6 +12,7 @@ const config = require('./config/app');
 // Load model associations
 require('./models/associations');
 const authRoutes = require('./routes/auth');
+const userAuthRoutes = require('./routes/userAuth');
 const brandRoutes = require('./routes/brands');
 const categoryRoutes = require('./routes/categories');
 const subCategoryRoutes = require('./routes/subCategoryRoutes');
@@ -65,6 +66,7 @@ app.use('/uploads', (req, res, next) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/user-auth', userAuthRoutes);
 app.use('/api/brands', brandRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/subcategories', subCategoryRoutes);
@@ -111,14 +113,14 @@ const startServer = async () => {
     // Start server
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📱 Admin Panel: http://localhost:${PORT}/api/auth`);
-      console.log(`🔗 Health Check: http://localhost:${PORT}/health`);
-      console.log(`🏷️  Brands API: http://localhost:${PORT}/api/brands`);
-      console.log(`📁 Categories API: http://localhost:${PORT}/api/categories`);
-      console.log(`📂 Subcategories API: http://localhost:${PORT}/api/subcategories`);
-      console.log(`📦 Products API: http://localhost:${PORT}/api/products`);
-      console.log(`🖼️  Banners API: http://localhost:${PORT}/api/banners`);
-      console.log(`🏪 Stores API: http://localhost:${PORT}/api/stores`);
+      console.log(`📱 Admin Panel: https://linkiin.in/api/auth`);
+      console.log(`🔗 Health Check: https://linkiin.in/health`);
+      console.log(`🏷️  Brands API: https://linkiin.in/api/brands`);
+      console.log(`📁 Categories API: https://linkiin.in/api/categories`);
+      console.log(`📂 Subcategories API: https://linkiin.in/api/subcategories`);
+      console.log(`📦 Products API: https://linkiin.in/api/products`);
+      console.log(`🖼️  Banners API: https://linkiin.in/api/banners`);
+      console.log(`🏪 Stores API: https://linkiin.in/api/stores`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

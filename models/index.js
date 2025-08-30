@@ -6,6 +6,7 @@ const Category = require('./Category');
 const SubCategory = require('./SubCategory');
 const Store = require('./Store');
 const Product = require('./Product');
+const OtpVerification = require('./OtpVerification');
 
 // Export models only - associations are handled in associations.js
 module.exports = {
@@ -14,5 +15,6 @@ module.exports = {
   Category,
   SubCategory,
   Store,
-  Product
+  Product,
+  OtpVerification
 };
