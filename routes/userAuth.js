@@ -10,6 +10,8 @@ router.use(rateLimit(50, 15 * 60 * 1000)); // 50 requests per 15 minutes
 router.post('/signup', userAuthController.signupValidation, userAuthController.signup);
 router.post('/login', userAuthController.loginValidation, userAuthController.login);
 router.post('/verify-otp', userAuthController.otpValidation, userAuthController.verifyOTP);
+router.post('/forgot-password', userAuthController.forgotPassword);
+router.post('/reset-password', userAuthController.resetPassword);
 
 // Protected routes (authentication required)
 router.use(authenticateToken); // Apply middleware to all routes below

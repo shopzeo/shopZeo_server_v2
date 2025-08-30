@@ -11,8 +11,8 @@ const { testConnection } = require('./config/database');
 const config = require('./config/app');
 // Load model associations
 require('./models/associations');
-const authRoutes = require('./routes/auth');
 const userAuthRoutes = require('./routes/userAuth');
+const adminRoutes = require('./routes/admin');
 const brandRoutes = require('./routes/brands');
 const categoryRoutes = require('./routes/categories');
 const subCategoryRoutes = require('./routes/subCategoryRoutes');
@@ -65,8 +65,8 @@ app.use('/uploads', (req, res, next) => {
 }, express.static(path.join(__dirname, 'uploads')));
 
 // Routes
-app.use('/api/auth', authRoutes);
 app.use('/api/user-auth', userAuthRoutes);
+app.use('/admin', adminRoutes); // Admin dashboard routes
 app.use('/api/brands', brandRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/subcategories', subCategoryRoutes);
@@ -83,6 +83,23 @@ app.get('/health', (req, res) => {
     message: 'Shopzeo Backend API is running',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
+  });
+});
+
+// Admin Dashboard Routes (Fallback - Redirect to frontend)
+app.get('/admin', (req, res) => {
+  res.redirect('/admin/login');
+});
+
+app.get('/admin/dashboard', (req, res) => {
+  // Redirect to frontend admin dashboard
+  res.json({
+    success: false,
+    message: 'Please login first to access admin dashboard',
+    data: {
+      login_url: '/admin/login',
+      frontend_dashboard: 'Use your React frontend for full dashboard experience'
+    }
   });
 });
 

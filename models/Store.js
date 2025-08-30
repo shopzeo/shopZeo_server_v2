@@ -71,7 +71,7 @@ const Store = sequelize.define('Store', {
   },
   gst_number: {
     type: DataTypes.STRING(15),
-    allowNull: false,
+    allowNull: true, // Make GST optional
     unique: true,
     validate: {
       len: [15, 15]
@@ -79,8 +79,8 @@ const Store = sequelize.define('Store', {
   },
   gst_percentage: {
     type: DataTypes.DECIMAL(5, 2),
-    allowNull: false,
-    defaultValue: 18.00,
+    allowNull: true, // Make GST percentage optional
+    defaultValue: null, // No default value when GST is optional
     validate: {
       min: 0,
       max: 100

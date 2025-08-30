@@ -41,13 +41,15 @@ const createStore = async (req, res) => {
       });
     }
 
-    // Check if GST number already exists
-    const existingGST = await Store.findOne({ where: { gst_number } });
-    if (existingGST) {
-      return res.status(400).json({
-        success: false,
-        message: 'A store with this GST number already exists'
-      });
+    // Check if GST number already exists (only if provided)
+    if (gst_number) {
+      const existingGST = await Store.findOne({ where: { gst_number } });
+      if (existingGST) {
+        return res.status(400).json({
+          success: false,
+          message: 'A store with this GST number already exists'
+        });
+      }
     }
 
     // Create vendor user account
@@ -67,6 +69,19 @@ const createStore = async (req, res) => {
       postal_code
     });
 
+    // Handle file uploads
+    let logo = null;
+    let banner = null;
+    
+    if (req.files) {
+      if (req.files.logo && req.files.logo[0]) {
+        logo = `/uploads/stores/${req.files.logo[0].filename}`;
+      }
+      if (req.files.banner && req.files.banner[0]) {
+        banner = `/uploads/stores/${req.files.banner[0].filename}`;
+      }
+    }
+
     // Generate slug from store name
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
@@ -82,10 +97,12 @@ const createStore = async (req, res) => {
       postal_code,
       phone,
       email,
-      gst_number,
-      gst_percentage: parseFloat(gst_percentage) || 18.00,
+      gst_number: gst_number || null, // Make GST optional
+      gst_percentage: gst_number ? (parseFloat(gst_percentage) || 18.00) : null, // GST percentage only if GST number provided
       pan_number,
       business_type,
+      logo,
+      banner,
       owner_id: vendorUser.id,
       meta_title: `${name} - Online Store`,
       meta_description: description || `Shop at ${name} for the best products and deals`,
@@ -107,8 +124,8 @@ const createStore = async (req, res) => {
           state: store.state,
           country: store.country,
           postal_code: store.postal_code,
-          gst_number: store.gst_number,
-          gst_percentage: store.gst_percentage,
+          gst_number: store.gst_number || 'Not provided', // Handle optional GST
+          gst_percentage: store.gst_percentage || 'Not applicable', // Handle optional GST percentage
           pan_number: store.pan_number,
           business_type: store.business_type,
           is_active: store.is_active,
@@ -250,7 +267,7 @@ const getStoreById = async (req, res) => {
 const updateStore = async (req, res) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const updateData = { ...req.body };
 
     const store = await Store.findByPk(id);
     if (!store) {
@@ -258,6 +275,16 @@ const updateStore = async (req, res) => {
         success: false,
         message: 'Store not found'
       });
+    }
+
+    // Handle file uploads
+    if (req.files) {
+      if (req.files.logo && req.files.logo[0]) {
+        updateData.logo = `/uploads/stores/${req.files.logo[0].filename}`;
+      }
+      if (req.files.banner && req.files.banner[0]) {
+        updateData.banner = `/uploads/stores/${req.files.banner[0].filename}`;
+      }
     }
 
     // Update store
@@ -276,6 +303,22 @@ const updateStore = async (req, res) => {
       const vendorUser = await User.findByPk(store.owner_id);
       if (vendorUser) {
         await vendorUser.update({ phone: updateData.phone });
+      }
+    }
+
+    // If GST number is being updated, check for uniqueness (only if provided)
+    if (updateData.gst_number && updateData.gst_number !== store.gst_number) {
+      const existingGST = await Store.findOne({ 
+        where: { 
+          gst_number: updateData.gst_number,
+          id: { [Op.ne]: store.id } // Exclude current store
+        } 
+      });
+      if (existingGST) {
+        return res.status(400).json({
+          success: false,
+          message: 'A store with this GST number already exists'
+        });
       }
     }
 
@@ -478,8 +521,8 @@ const exportStores = async (req, res) => {
       'State': store.state,
       'Country': store.country,
       'Postal Code': store.postal_code,
-      'GST Number': store.gst_number,
-      'GST %': store.gst_percentage,
+      'GST Number': store.gst_number || 'Not provided',
+      'GST %': store.gst_percentage || 'Not applicable',
       'PAN Number': store.pan_number,
       'Business Type': store.business_type,
       'Status': store.is_active ? 'Active' : 'Inactive',
