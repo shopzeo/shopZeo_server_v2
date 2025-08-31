@@ -76,9 +76,28 @@ const otpValidation = [
  */
 exports.signup = async (req, res) => {
   try {
+    console.log('🔍 [SIGNUP] Starting signup process...');
+    console.log('🔍 [SIGNUP] Request body:', req.body);
+    
+    // Test database connection first
+    console.log('🔍 [SIGNUP] Testing database connection...');
+    const { sequelize } = require('../config/database');
+    try {
+      await sequelize.authenticate();
+      console.log('✅ [SIGNUP] Database connection OK');
+    } catch (dbError) {
+      console.error('❌ [SIGNUP] Database connection failed:', dbError);
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection failed',
+        error: process.env.NODE_ENV === 'development' ? dbError.message : 'Database error'
+      });
+    }
+    
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ [SIGNUP] Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
@@ -87,18 +106,21 @@ exports.signup = async (req, res) => {
     }
 
     const { first_name, last_name, email, phone, password, role } = req.body;
+    console.log('🔍 [SIGNUP] Extracted data:', { first_name, last_name, email, phone: phone ? '***' : null, role });
 
     // Set default role to customer if not specified
     const userRole = role || 'customer';
 
     // Email + Password signup (simplified)
     if (!first_name || !last_name || !email || !password) {
+      console.log('❌ [SIGNUP] Missing required fields');
       return res.status(400).json({
         success: false,
         message: 'First name, last name, email, and password are required'
       });
     }
 
+    console.log('🔍 [SIGNUP] Calling UserAuthService.signupWithEmail...');
     const result = await UserAuthService.signupWithEmail({
       first_name,
       last_name,
@@ -108,9 +130,30 @@ exports.signup = async (req, res) => {
       role: userRole
     });
 
+    console.log('✅ [SIGNUP] Signup successful:', result);
     res.status(201).json(result);
   } catch (error) {
-    console.error('Signup error:', error);
+    console.error('❌ [SIGNUP] Signup error:', error);
+    console.error('❌ [SIGNUP] Error stack:', error.stack);
+    console.error('❌ [SIGNUP] Error name:', error.name);
+    console.error('❌ [SIGNUP] Error message:', error.message);
+    
+    // Check for specific database errors
+    if (error.name === 'SequelizeConnectionError' || error.name === 'SequelizeConnectionRefusedError') {
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection failed. Please try again later.',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Database error'
+      });
+    }
+    
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid data provided',
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Validation error'
+      });
+    }
     
     if (error.message.includes('already exists')) {
       return res.status(409).json({

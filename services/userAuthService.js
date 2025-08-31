@@ -84,21 +84,31 @@ class UserAuthService {
    */
   static async signupWithEmail(userData) {
     try {
+      console.log('🔍 [SERVICE] Starting signupWithEmail...');
+      console.log('🔍 [SERVICE] User data:', { ...userData, password: '***' });
+      
       // Check if user already exists
+      console.log('🔍 [SERVICE] Checking if user exists by email...');
       const existingUser = await User.findByEmail(userData.email);
       if (existingUser) {
+        console.log('❌ [SERVICE] User already exists with email:', userData.email);
         throw new Error('User with this email already exists');
       }
+      console.log('✅ [SERVICE] Email is available');
 
       // Check if phone is already taken
       if (userData.phone) {
+        console.log('🔍 [SERVICE] Checking if phone is taken...');
         const existingPhoneUser = await User.findByPhone(userData.phone);
         if (existingPhoneUser) {
+          console.log('❌ [SERVICE] Phone already taken:', userData.phone);
           throw new Error('User with this phone number already exists');
         }
+        console.log('✅ [SERVICE] Phone is available');
       }
 
       // Create user with email verification
+      console.log('🔍 [SERVICE] Creating user in database...');
       const user = await User.create({
         id: uuidv4(),
         first_name: userData.first_name,
@@ -111,11 +121,14 @@ class UserAuthService {
         email_verified_at: null,
         phone_verified_at: null
       });
+      console.log('✅ [SERVICE] User created successfully:', user.id);
 
       // Generate JWT token
+      console.log('🔍 [SERVICE] Generating JWT token...');
       const token = this.generateJWT(user);
+      console.log('✅ [SERVICE] JWT token generated');
 
-      return {
+      const result = {
         success: true,
         message: 'User registered successfully. Please verify your email.',
         data: {
@@ -131,7 +144,14 @@ class UserAuthService {
           token
         }
       };
+      
+      console.log('✅ [SERVICE] Signup completed successfully');
+      return result;
     } catch (error) {
+      console.error('❌ [SERVICE] Error in signupWithEmail:', error);
+      console.error('❌ [SERVICE] Error stack:', error.stack);
+      console.error('❌ [SERVICE] Error name:', error.name);
+      console.error('❌ [SERVICE] Error message:', error.message);
       throw error;
     }
   }
