@@ -11,8 +11,8 @@ const { testConnection } = require('./config/database');
 const config = require('./config/app');
 // Load model associations
 require('./models/associations');
+const authRoutes = require('./routes/auth');
 const userAuthRoutes = require('./routes/userAuth');
-const adminRoutes = require('./routes/admin');
 const brandRoutes = require('./routes/brands');
 const categoryRoutes = require('./routes/categories');
 const subCategoryRoutes = require('./routes/subCategoryRoutes');
@@ -65,8 +65,8 @@ app.use('/uploads', (req, res, next) => {
 }, express.static(path.join(__dirname, 'uploads')));
 
 // Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/user-auth', userAuthRoutes);
-app.use('/admin', adminRoutes); // Admin dashboard routes
 app.use('/api/brands', brandRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/subcategories', subCategoryRoutes);
@@ -76,104 +76,13 @@ app.use('/api/stores', storeRoutes);
 app.use('/api/admin', bulkImportRoutes);
 app.use('/api/categories', categoryHierarchyRoutes);
 
-// Database test route
-app.get('/test-db', async (req, res) => {
-  try {
-    const { sequelize } = require('./config/database');
-    
-    // Test basic connection
-    await sequelize.authenticate();
-    
-    // Test if users table exists
-    const [results] = await sequelize.query("SHOW TABLES LIKE 'users'");
-    const usersTableExists = results.length > 0;
-    
-    // Test if we can query the users table
-    let userCount = 0;
-    if (usersTableExists) {
-      const [countResults] = await sequelize.query("SELECT COUNT(*) as count FROM users");
-      userCount = countResults[0].count;
-    }
-    
-    res.json({
-      success: true,
-      message: 'Database test completed',
-      database: {
-        connection: 'OK',
-        users_table_exists: usersTableExists,
-        user_count: userCount,
-        host: process.env.DB_HOST || 'localhost',
-        database: process.env.DB_NAME || 'shopzeo_db'
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Database test failed',
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    });
-  }
-});
-
 // Health check route
-app.get('/health', async (req, res) => {
-  try {
-    // Test database connection
-    const { sequelize } = require('./config/database');
-    let dbStatus = 'unknown';
-    let dbError = null;
-    
-    try {
-      await sequelize.authenticate();
-      dbStatus = 'connected';
-    } catch (error) {
-      dbStatus = 'disconnected';
-      dbError = error.message;
-    }
-    
-    res.json({
-      success: true,
-      message: 'Shopzeo Backend API is running',
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime(),
-      environment: process.env.NODE_ENV || 'development',
-      database: {
-        status: dbStatus,
-        host: process.env.DB_HOST || 'localhost',
-        port: process.env.DB_PORT || 3306,
-        name: process.env.DB_NAME || 'shopzeo_db',
-        user: process.env.DB_USER || 'root',
-        error: dbError
-      },
-      jwt: {
-        secret: process.env.JWT_SECRET ? 'configured' : 'using-default',
-        expires: process.env.JWT_EXPIRES_IN || '7d'
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Health check failed',
-      error: error.message
-    });
-  }
-});
-
-// Admin Dashboard Routes (Fallback - Redirect to frontend)
-app.get('/admin', (req, res) => {
-  res.redirect('/admin/login');
-});
-
-app.get('/admin/dashboard', (req, res) => {
-  // Redirect to frontend admin dashboard
+app.get('/health', (req, res) => {
   res.json({
-    success: false,
-    message: 'Please login first to access admin dashboard',
-    data: {
-      login_url: '/admin/login',
-      frontend_dashboard: 'Use your React frontend for full dashboard experience'
-    }
+    success: true,
+    message: 'Shopzeo Backend API is running',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
   });
 });
 

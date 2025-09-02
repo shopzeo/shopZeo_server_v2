@@ -2,7 +2,7 @@ require('dotenv').config();
 
 const config = {
   // Server Configuration
-  PORT: process.env.PORT || 5311, // Changed from 5310 to 5311
+  PORT: process.env.PORT || 5310,
   NODE_ENV: process.env.NODE_ENV || 'development',
   
   // Base URL Configuration
@@ -11,9 +11,7 @@ const config = {
   
   // Cross-Origin Configuration
   CORS_ORIGIN: process.env.CORS_ORIGIN || 'https://linkiin.in',
-  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS ? 
-    process.env.ALLOWED_ORIGINS.split(',') : 
-    ['http://localhost:3000', 'http://localhost:5173', 'https://linkiin.in'],
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://linkiin.in'],
   
   // Database Configuration
   DB_HOST: process.env.DB_HOST || 'localhost',
@@ -23,12 +21,12 @@ const config = {
   DB_PASSWORD: process.env.DB_PASSWORD || '',
   
   // JWT Configuration
-  JWT_SECRET: process.env.JWT_SECRET || 'shopzeo-secret-key',
+  JWT_SECRET: process.env.JWT_SECRET || 'your-super-secret-jwt-key-here',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
   
   // File Upload Configuration
   UPLOAD_PATH: process.env.UPLOAD_PATH || './uploads',
-  MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024, // 5MB
+  MAX_FILE_SIZE: process.env.MAX_FILE_SIZE || 5242880,
   
   // Helper function to get full image URL
   getImageUrl: (imagePath) => {

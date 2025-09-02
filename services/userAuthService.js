@@ -84,31 +84,21 @@ class UserAuthService {
    */
   static async signupWithEmail(userData) {
     try {
-      console.log('🔍 [SERVICE] Starting signupWithEmail...');
-      console.log('🔍 [SERVICE] User data:', { ...userData, password: '***' });
-      
       // Check if user already exists
-      console.log('🔍 [SERVICE] Checking if user exists by email...');
       const existingUser = await User.findByEmail(userData.email);
       if (existingUser) {
-        console.log('❌ [SERVICE] User already exists with email:', userData.email);
         throw new Error('User with this email already exists');
       }
-      console.log('✅ [SERVICE] Email is available');
 
       // Check if phone is already taken
       if (userData.phone) {
-        console.log('🔍 [SERVICE] Checking if phone is taken...');
         const existingPhoneUser = await User.findByPhone(userData.phone);
         if (existingPhoneUser) {
-          console.log('❌ [SERVICE] Phone already taken:', userData.phone);
           throw new Error('User with this phone number already exists');
         }
-        console.log('✅ [SERVICE] Phone is available');
       }
 
       // Create user with email verification
-      console.log('🔍 [SERVICE] Creating user in database...');
       const user = await User.create({
         id: uuidv4(),
         first_name: userData.first_name,
@@ -121,14 +111,11 @@ class UserAuthService {
         email_verified_at: null,
         phone_verified_at: null
       });
-      console.log('✅ [SERVICE] User created successfully:', user.id);
 
       // Generate JWT token
-      console.log('🔍 [SERVICE] Generating JWT token...');
       const token = this.generateJWT(user);
-      console.log('✅ [SERVICE] JWT token generated');
 
-      const result = {
+      return {
         success: true,
         message: 'User registered successfully. Please verify your email.',
         data: {
@@ -144,14 +131,7 @@ class UserAuthService {
           token
         }
       };
-      
-      console.log('✅ [SERVICE] Signup completed successfully');
-      return result;
     } catch (error) {
-      console.error('❌ [SERVICE] Error in signupWithEmail:', error);
-      console.error('❌ [SERVICE] Error stack:', error.stack);
-      console.error('❌ [SERVICE] Error name:', error.name);
-      console.error('❌ [SERVICE] Error message:', error.message);
       throw error;
     }
   }
@@ -239,58 +219,6 @@ class UserAuthService {
         throw new Error('User not found');
       }
 
-      await user.update({
-        is_verified: true,
-        phone_verified_at: new Date()
-      });
-
-      // Generate JWT token
-      const token = this.generateJWT(user);
-
-      return {
-        success: true,
-        message: 'Phone number verified successfully',
-        data: {
-          user: {
-            id: user.id,
-            first_name: user.first_name,
-            last_name: user.last_name,
-            email: user.email,
-            phone: user.phone,
-            role: user.role,
-            is_verified: user.is_verified,
-            phone_verified_at: user.phone_verified_at
-          },
-          token
-        }
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Verify OTP by phone number (user-friendly method)
-   */
-  static async verifyOTPByPhone(phone, otp) {
-    try {
-      // First find the user by phone
-      const user = await User.findByPhone(phone);
-      if (!user) {
-        throw new Error('User not found with this phone number');
-      }
-
-      // Find valid OTP for this user
-      const otpVerification = await OtpVerification.findValidOtp(user.id, otp);
-      
-      if (!otpVerification) {
-        throw new Error('Invalid or expired OTP');
-      }
-
-      // Mark OTP as used
-      await otpVerification.update({ is_used: true });
-
-      // Update user verification status
       await user.update({
         is_verified: true,
         phone_verified_at: new Date()
@@ -535,147 +463,6 @@ class UserAuthService {
     } catch (error) {
       throw error;
     }
-  }
-
-  /**
-   * Forgot Password - Send reset email
-   */
-  static async forgotPassword(email) {
-    try {
-      // Find user by email
-      const user = await User.findByEmail(email);
-      if (!user) {
-        throw new Error('User not found with this email address');
-      }
-
-      // Check if user has password (phone-only users won't have password)
-      if (!user.password) {
-        throw new Error('This account does not have a password. Please use phone verification.');
-      }
-
-      // Generate reset token
-      const resetToken = jwt.sign(
-        { id: user.id, email: user.email, type: 'password_reset' },
-        process.env.JWT_SECRET || 'shopzeo-secret-key',
-        { expiresIn: '1h' }
-      );
-
-      // Store reset token in user record (you might want to create a separate table for this)
-      await user.update({ 
-        reset_token: resetToken,
-        reset_token_expires: new Date(Date.now() + 60 * 60 * 1000) // 1 hour
-      });
-
-      // Send reset email
-      const resetLink = `${process.env.BASE_URL || 'https://linkiin.in'}/reset-password?token=${resetToken}`;
-      const emailResult = await this.sendPasswordResetEmail(user.email, resetLink, user.first_name);
-
-      return {
-        success: true,
-        message: 'Password reset email sent successfully',
-        data: {
-          email: user.email,
-          reset_link: resetLink // In production, don't send this in response
-        }
-      };
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  /**
-   * Reset Password using token
-   */
-  static async resetPassword(token, newPassword) {
-    try {
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'shopzeo-secret-key');
-      
-      if (decoded.type !== 'password_reset') {
-        throw new Error('Invalid token type');
-      }
-
-      // Find user
-      const user = await User.findByPk(decoded.id);
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      // Check if token matches and is not expired
-      if (user.reset_token !== token || new Date() > user.reset_token_expires) {
-        throw new Error('Token expired or invalid');
-      }
-
-      // Update password
-      await user.update({ 
-        password: newPassword,
-        reset_token: null,
-        reset_token_expires: null
-      });
-
-      return {
-        success: true,
-        message: 'Password reset successfully'
-      };
-    } catch (error) {
-      if (error.name === 'JsonWebTokenError') {
-        throw new Error('Invalid token');
-      } else if (error.name === 'TokenExpiredError') {
-        throw new Error('Token expired');
-      }
-      throw error;
-    }
-  }
-
-  /**
-   * Send Password Reset Email
-   */
-  static async sendPasswordResetEmail(email, resetLink, userName) {
-    const subject = '🔐 Reset Your Shopzeo Password';
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Reset Password - Shopzeo</title>
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: #007bff; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
-          .content { background: #f8f9fa; padding: 30px; border-radius: 0 0 8px 8px; }
-          .button { background: #007bff; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 20px 0; }
-          .footer { text-align: center; margin-top: 20px; color: #666; font-size: 14px; }
-          .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1>🔐 Reset Your Password</h1>
-          </div>
-          <div class="content">
-            <p>Hello ${userName},</p>
-            <p>We received a request to reset your password for your Shopzeo account.</p>
-            <p>Click the button below to reset your password:</p>
-            <a href="${resetLink}" class="button">Reset Password</a>
-            <p>If the button doesn't work, copy and paste this link into your browser:</p>
-            <p>${resetLink}</p>
-            <div class="warning">
-              <strong>⚠️ Important:</strong> This link will expire in 1 hour for security reasons.
-            </div>
-            <p>If you didn't request this password reset, please ignore this email.</p>
-            <p>Best regards,<br>The Shopzeo Team</p>
-          </div>
-          <div class="footer">
-            <p>This is an automated email. Please do not reply.</p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-
-    return await sendOTPEmail(email, html, userName);
   }
 
   /**

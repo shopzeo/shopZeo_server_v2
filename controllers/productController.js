@@ -2,7 +2,8 @@ const Product = require('../models/Product');
 const Store = require('../models/Store');
 const Category = require('../models/Category');
 const SubCategory = require('../models/SubCategory');
-const { Op } = require('sequelize');
+const { Op, literal } = require('sequelize');
+const { sequelize } = require('../config/database');
 
 // Get all products with pagination and search
 exports.getProducts = async (req, res) => {
@@ -397,6 +398,156 @@ exports.toggleProductFeatured = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to toggle product featured status',
+      error: error.message
+    });
+  }
+};
+
+// Search products with full text search
+exports.searchProducts = async (req, res) => {
+  try {
+    const { 
+      q = '', 
+      page = 1, 
+      limit = 20, 
+      store_id = '', 
+      category_id = '', 
+      sub_category_id = '',
+      min_price = '',
+      max_price = '',
+      is_active = '',
+      is_featured = '',
+      sort_by = 'relevance' // relevance, price_asc, price_desc, name_asc, name_desc, rating_desc
+    } = req.query;
+    
+    if (!q.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Search query is required'
+      });
+    }
+    
+    // Get search query
+    const searchQuery = q.trim();
+    
+    // Get products with pagination using raw query to avoid column ambiguity
+    const offset = (parseInt(page) - 1) * parseInt(limit);
+    
+    // Build the base query
+    let baseQuery = `
+      FROM products p
+      LEFT JOIN stores s ON p.store_id = s.id
+      LEFT JOIN categories c ON p.category_id = c.id
+      LEFT JOIN sub_categories sc ON p.sub_category_id = sc.id
+      WHERE (
+        MATCH(p.name, p.description, p.product_code, p.sku_id) AGAINST('${searchQuery}' IN NATURAL LANGUAGE MODE)
+        OR p.name LIKE '%${searchQuery}%'
+        OR p.product_code LIKE '%${searchQuery}%'
+        OR p.sku_id LIKE '%${searchQuery}%'
+        OR p.description LIKE '%${searchQuery}%'
+      )
+    `;
+    
+    // Add filters
+    if (store_id) baseQuery += ` AND p.store_id = '${store_id}'`;
+    if (category_id) baseQuery += ` AND p.category_id = ${category_id}`;
+    if (sub_category_id) baseQuery += ` AND p.sub_category_id = ${sub_category_id}`;
+    if (is_active !== '') baseQuery += ` AND p.is_active = ${is_active === 'true' ? 1 : 0}`;
+    if (is_featured !== '') baseQuery += ` AND p.is_featured = ${is_featured === 'true' ? 1 : 0}`;
+    if (min_price) baseQuery += ` AND p.selling_price >= ${parseFloat(min_price)}`;
+    if (max_price) baseQuery += ` AND p.selling_price <= ${parseFloat(max_price)}`;
+    
+    // Build order clause
+    let orderClause = '';
+    switch (sort_by) {
+      case 'price_asc':
+        orderClause = 'ORDER BY p.selling_price ASC';
+        break;
+      case 'price_desc':
+        orderClause = 'ORDER BY p.selling_price DESC';
+        break;
+      case 'name_asc':
+        orderClause = 'ORDER BY p.name ASC';
+        break;
+      case 'name_desc':
+        orderClause = 'ORDER BY p.name DESC';
+        break;
+      case 'rating_desc':
+        orderClause = 'ORDER BY p.rating DESC, p.total_reviews DESC';
+        break;
+      case 'relevance':
+      default:
+        orderClause = `ORDER BY MATCH(p.name, p.description, p.product_code, p.sku_id) AGAINST('${searchQuery}' IN NATURAL LANGUAGE MODE) DESC, p.rating DESC, p.total_reviews DESC`;
+        break;
+    }
+    
+    // Get count
+    const countQuery = `SELECT COUNT(*) as count ${baseQuery}`;
+    const [countResult] = await sequelize.query(countQuery);
+    const count = countResult[0].count;
+    
+    // Get products
+    const productsQuery = `
+      SELECT 
+        p.*,
+        s.id as store_id,
+        s.name as store_name,
+        c.id as category_id,
+        c.name as category_name,
+        sc.id as sub_category_id,
+        sc.name as sub_category_name
+      ${baseQuery}
+      ${orderClause}
+      LIMIT ${parseInt(limit)} OFFSET ${offset}
+    `;
+    
+    const [products] = await sequelize.query(productsQuery);
+    
+    // Format products to match expected structure
+    const formattedProducts = products.map(product => ({
+      ...product,
+      store: {
+        id: product.store_id,
+        name: product.store_name
+      },
+      category: {
+        id: product.category_id,
+        name: product.category_name
+      },
+      subCategory: {
+        id: product.sub_category_id,
+        name: product.sub_category_name
+      },
+      productMedia: [] // We'll add media separately if needed
+    }));
+    
+    // Calculate search statistics
+    const searchStats = {
+      query: searchQuery,
+      total_results: count,
+      page: parseInt(page),
+      limit: parseInt(limit),
+      total_pages: Math.ceil(count / parseInt(limit)),
+      has_more: offset + parseInt(limit) < count
+    };
+    
+    res.json({
+      success: true,
+      message: 'Search completed successfully',
+      products: formattedProducts,
+      search_stats: searchStats,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        pages: Math.ceil(count / parseInt(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Search products error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to search products',
       error: error.message
     });
   }

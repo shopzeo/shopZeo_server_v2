@@ -16,18 +16,20 @@ const signupValidation = [
     .withMessage('Last name must be between 2 and 100 characters'),
   
   body('email')
+    .optional()
     .isEmail()
     .normalizeEmail()
     .withMessage('Please provide a valid email address'),
-  
-  body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
   
   body('phone')
     .optional()
     .isMobilePhone('any')
     .withMessage('Please provide a valid phone number'),
+  
+  body('password')
+    .optional()
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long'),
   
   body('role')
     .optional()
@@ -60,9 +62,9 @@ const loginValidation = [
  * Validation rules for OTP verification
  */
 const otpValidation = [
-  body('phone')
-    .isMobilePhone('any')
-    .withMessage('Valid phone number is required'),
+  body('user_id')
+    .isUUID()
+    .withMessage('Valid user ID is required'),
   
   body('otp')
     .isLength({ min: 6, max: 6 })
@@ -76,28 +78,9 @@ const otpValidation = [
  */
 exports.signup = async (req, res) => {
   try {
-    console.log('🔍 [SIGNUP] Starting signup process...');
-    console.log('🔍 [SIGNUP] Request body:', req.body);
-    
-    // Test database connection first
-    console.log('🔍 [SIGNUP] Testing database connection...');
-    const { sequelize } = require('../config/database');
-    try {
-      await sequelize.authenticate();
-      console.log('✅ [SIGNUP] Database connection OK');
-    } catch (dbError) {
-      console.error('❌ [SIGNUP] Database connection failed:', dbError);
-      return res.status(500).json({
-        success: false,
-        message: 'Database connection failed',
-        error: process.env.NODE_ENV === 'development' ? dbError.message : 'Database error'
-      });
-    }
-    
     // Check validation errors
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('❌ [SIGNUP] Validation errors:', errors.array());
       return res.status(400).json({
         success: false,
         message: 'Validation failed',
@@ -106,54 +89,60 @@ exports.signup = async (req, res) => {
     }
 
     const { first_name, last_name, email, phone, password, role } = req.body;
-    console.log('🔍 [SIGNUP] Extracted data:', { first_name, last_name, email, phone: phone ? '***' : null, role });
 
-    // Set default role to customer if not specified
-    const userRole = role || 'customer';
-
-    // Email + Password signup (simplified)
-    if (!first_name || !last_name || !email || !password) {
-      console.log('❌ [SIGNUP] Missing required fields');
+    // Validate that either email+password OR phone is provided
+    if (!email && !phone) {
       return res.status(400).json({
         success: false,
-        message: 'First name, last name, email, and password are required'
+        message: 'Either email or phone number is required'
       });
     }
 
-    console.log('🔍 [SIGNUP] Calling UserAuthService.signupWithEmail...');
-    const result = await UserAuthService.signupWithEmail({
-      first_name,
-      last_name,
-      email,
-      phone: phone || null, // Make phone optional
-      password,
-      role: userRole
-    });
+    let result;
 
-    console.log('✅ [SIGNUP] Signup successful:', result);
+    if (email && password) {
+      // Email + Password signup
+      if (!first_name || !last_name) {
+        return res.status(400).json({
+          success: false,
+          message: 'First name and last name are required for email signup'
+        });
+      }
+
+      result = await UserAuthService.signupWithEmail({
+        first_name,
+        last_name,
+        email,
+        phone,
+        password,
+        role
+      });
+    } else if (phone) {
+      // Phone + OTP signup
+      if (!first_name || !last_name) {
+        return res.status(400).json({
+          success: false,
+          message: 'First name and last name are required for phone signup'
+        });
+      }
+
+      result = await UserAuthService.signupWithPhone({
+        first_name,
+        last_name,
+        email,
+        phone,
+        role
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid signup method. Use email+password or phone number.'
+      });
+    }
+
     res.status(201).json(result);
   } catch (error) {
-    console.error('❌ [SIGNUP] Signup error:', error);
-    console.error('❌ [SIGNUP] Error stack:', error.stack);
-    console.error('❌ [SIGNUP] Error name:', error.name);
-    console.error('❌ [SIGNUP] Error message:', error.message);
-    
-    // Check for specific database errors
-    if (error.name === 'SequelizeConnectionError' || error.name === 'SequelizeConnectionRefusedError') {
-      return res.status(500).json({
-        success: false,
-        message: 'Database connection failed. Please try again later.',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Database error'
-      });
-    }
-    
-    if (error.name === 'SequelizeValidationError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid data provided',
-        error: process.env.NODE_ENV === 'development' ? error.message : 'Validation error'
-      });
-    }
+    console.error('Signup error:', error);
     
     if (error.message.includes('already exists')) {
       return res.status(409).json({
@@ -241,9 +230,9 @@ exports.verifyOTP = async (req, res) => {
       });
     }
 
-    const { phone, otp } = req.body;
+    const { user_id, otp } = req.body;
 
-    const result = await UserAuthService.verifyOTPByPhone(phone, otp);
+    const result = await UserAuthService.verifyOTP(user_id, otp);
 
     res.json(result);
   } catch (error) {
@@ -404,88 +393,8 @@ exports.logout = (req, res) => {
 };
 
 /**
- * Forgot Password API
- * POST /api/user-auth/forgot-password
- */
-exports.forgotPassword = async (req, res) => {
-  try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email is required'
-      });
-    }
-
-    const result = await UserAuthService.forgotPassword(email);
-
-    res.json(result);
-  } catch (error) {
-    console.error('Forgot password error:', error);
-    
-    if (error.message.includes('User not found')) {
-      return res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-/**
- * Reset Password API
- * POST /api/user-auth/reset-password
- */
-exports.resetPassword = async (req, res) => {
-  try {
-    const { token, new_password } = req.body;
-
-    if (!token || !new_password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Token and new password are required'
-      });
-    }
-
-    if (new_password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'New password must be at least 6 characters long'
-      });
-    }
-
-    const result = await UserAuthService.resetPassword(token, new_password);
-
-    res.json(result);
-  } catch (error) {
-    console.error('Reset password error:', error);
-    
-    if (error.message.includes('Invalid token') || 
-        error.message.includes('Token expired')) {
-      return res.status(400).json({
-        success: false,
-        message: error.message
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
-    });
-  }
-};
-
-/**
  * Refresh token API (optional)
- * POST /api/user-auth/refresh-token
+ * POST /api/auth/refresh-token
  */
 exports.refreshToken = async (req, res) => {
   try {

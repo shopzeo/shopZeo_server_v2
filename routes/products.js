@@ -25,6 +25,9 @@ const upload = multer({
 // Get all products
 router.get('/', productController.getProducts);
 
+// Search products with full text search
+router.get('/search', productController.searchProducts);
+
 // Get single product
 router.get('/:id', productController.getProduct);
 

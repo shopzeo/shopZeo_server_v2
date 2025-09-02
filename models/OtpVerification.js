@@ -1,4 +1,4 @@
-const { DataTypes, Op } = require('sequelize');
+const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
 const OtpVerification = sequelize.define('OtpVerification', {
@@ -71,7 +71,7 @@ OtpVerification.findValidOtp = function(userId, otp) {
       otp: otp,
       is_used: false,
       expires_at: {
-        [Op.gt]: new Date()
+        [sequelize.Op.gt]: new Date()
       }
     }
   });
@@ -83,7 +83,7 @@ OtpVerification.findLatestOtp = function(userId) {
       user_id: userId,
       is_used: false,
       expires_at: {
-        [Op.gt]: new Date()
+        [sequelize.Op.gt]: new Date()
       }
     },
     order: [['created_at', 'DESC']]
@@ -94,7 +94,7 @@ OtpVerification.cleanupExpiredOtps = function() {
   return this.destroy({
     where: {
       expires_at: {
-        [Op.lt]: new Date()
+        [sequelize.Op.lt]: new Date()
       }
     }
   });

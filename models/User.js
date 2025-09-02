@@ -26,10 +26,11 @@ const User = sequelize.define('User', {
   },
   email: {
     type: DataTypes.STRING(255),
-    allowNull: true,
+    allowNull: false,
     unique: true,
     validate: {
-      isEmail: true
+      isEmail: true,
+      notEmpty: true
     }
   },
   phone: {
@@ -41,8 +42,9 @@ const User = sequelize.define('User', {
   },
   password: {
     type: DataTypes.STRING(255),
-    allowNull: true,
+    allowNull: false,
     validate: {
+      notEmpty: true,
       len: [6, 255]
     }
   },
@@ -122,14 +124,6 @@ const User = sequelize.define('User', {
     type: DataTypes.JSON,
     allowNull: true,
     defaultValue: {}
-  },
-  reset_token: {
-    type: DataTypes.STRING(500),
-    allowNull: true
-  },
-  reset_token_expires: {
-    type: DataTypes.DATE,
-    allowNull: true
   }
 }, {
   tableName: 'users',
