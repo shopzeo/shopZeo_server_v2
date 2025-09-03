@@ -35,7 +35,7 @@ router.get('/login', (req, res) => {
 });
 
 // Protected admin routes (require admin authentication)
-router.get('/dashboard', requireAdmin, (req, res) => {
+router.get('/#', requireAdmin, (req, res) => {
   res.json({
     success: true,
     message: 'Admin Dashboard',
