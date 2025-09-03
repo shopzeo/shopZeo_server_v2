@@ -22,13 +22,13 @@ async function createTestAdmin() {
       console.log('No existing admins found');
     }
 
-    // Create test admin user
-    console.log('\n🔧 Creating test admin user...');
+    // Create new test admin user
+    console.log('\n🔧 Creating new test admin user...');
     
     const testAdmin = await Admin.create({
-      email: 'test@shopzeo.com',
-      password: 'test123456',
-      name: 'Test Admin',
+      email: 'newadmin@shopzeo.com',
+      password: 'newadmin123',
+      name: 'New Test Admin',
       role: 'admin',
       isActive: true
     });
@@ -39,15 +39,15 @@ async function createTestAdmin() {
     console.log(`   - Email: ${testAdmin.email}`);
     console.log(`   - Role: ${testAdmin.role}`);
     console.log(`   - Active: ${testAdmin.isActive}`);
-    console.log(`   - Password: test123456`);
+    console.log(`   - Password: newadmin123`);
 
     // Create another test admin with super_admin role
-    console.log('\n🔧 Creating super admin user...');
+    console.log('\n🔧 Creating new super admin user...');
     
     const superAdmin = await Admin.create({
-      email: 'super@shopzeo.com',
-      password: 'super123456',
-      name: 'Super Test Admin',
+      email: 'newsuper@shopzeo.com',
+      password: 'newsuper123',
+      name: 'New Super Test Admin',
       role: 'super_admin',
       isActive: true
     });
@@ -58,12 +58,12 @@ async function createTestAdmin() {
     console.log(`   - Email: ${superAdmin.email}`);
     console.log(`   - Role: ${superAdmin.role}`);
     console.log(`   - Active: ${superAdmin.isActive}`);
-    console.log(`   - Password: super123456`);
+    console.log(`   - Password: newsuper123`);
 
     // Test password comparison
     console.log('\n🧪 Testing password functionality...');
-    const isPasswordValid = await testAdmin.comparePassword('test123456');
-    console.log(`Password 'test123456' is valid: ${isPasswordValid}`);
+    const isPasswordValid = await testAdmin.comparePassword('newadmin123');
+    console.log(`Password 'newadmin123' is valid: ${isPasswordValid}`);
     
     const isWrongPasswordValid = await testAdmin.comparePassword('wrongpassword');
     console.log(`Password 'wrongpassword' is valid: ${isWrongPasswordValid}`);
@@ -79,13 +79,13 @@ async function createTestAdmin() {
       console.log(`- ${admin.name} (${admin.email}) - Role: ${admin.role} - Active: ${admin.isActive} - Created: ${admin.createdAt}`);
     });
 
-    console.log('\n🎯 Test Admin Credentials:');
-    console.log('Email: test@shopzeo.com');
-    console.log('Password: test123456');
+    console.log('\n🎯 New Test Admin Credentials:');
+    console.log('Email: newadmin@shopzeo.com');
+    console.log('Password: newadmin123');
     console.log('Role: admin');
-    console.log('\n🎯 Super Admin Credentials:');
-    console.log('Email: super@shopzeo.com');
-    console.log('Password: super123456');
+    console.log('\n🎯 New Super Admin Credentials:');
+    console.log('Email: newsuper@shopzeo.com');
+    console.log('Password: newsuper123');
     console.log('Role: super_admin');
 
   } catch (error) {
