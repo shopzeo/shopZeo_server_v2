@@ -17,7 +17,7 @@ router.post('/', async (req, res) => {
       data: createdOrders,
     });
   } catch (error) {
-    console.error("💥 Order Creation Failed!", error);
+    console.error(" Order Creation Failed!", error);
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || 'An internal server error occurred.',
@@ -39,8 +39,8 @@ router.get('/', async (req, res) => {
     });
     res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {
-    console.error("💥 Fetching Orders Failed!", error);
-    res.status(500).json({ success: false, message: 'Internal server error.' });
+    console.error("Fetching Orders Failed!", error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });
 
