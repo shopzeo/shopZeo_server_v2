@@ -1,80 +1,46 @@
 const express = require('express');
 const router = express.Router();
-const { Order, OrderItem, Product, User } = require('../models');
+const OrderService = require('../services/orderService');
+const { Order, OrderItem, Product } = require('../models/associations');
+const { authenticateToken } = require('../middleware/userAuth.js');
 
-// Get user orders
+// Protect all routes in this file
+router.use(authenticateToken);
+
+// Create new order(s)
+router.post('/', async (req, res) => {
+  try {
+    const createdOrders = await OrderService.createOrder(req.body, req.user.id);
+    res.status(201).json({
+      success: true,
+      message: `${createdOrders.length} order(s) have been successfully placed.`,
+      data: createdOrders,
+    });
+  } catch (error) {
+    console.error("💥 Order Creation Failed!", error);
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'An internal server error occurred.',
+    });
+  }
+});
+
+// Get all orders for the logged-in user
 router.get('/', async (req, res) => {
   try {
     const orders = await Order.findAll({
-      where: { userId: req.user.id },
-      include: [
-        { model: OrderItem, include: [{ model: Product, attributes: ['name', 'price'] }] }
-      ],
-      order: [['createdAt', 'DESC']]
+      where: { customerId: req.user.id }, // Using camelCase to match model
+      include: [{
+        model: OrderItem,
+        as: 'items', // Make sure this alias is defined in your Order model association
+        include: [Product]
+      }],
+      order: [['createdAt', 'DESC']],
     });
-    
-    res.json({ success: true, data: orders });
+    res.json({ success: true, count: orders.length, data: orders });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Get single order
-router.get('/:id', async (req, res) => {
-  try {
-    const order = await Order.findOne({
-      where: { id: req.params.id, userId: req.user.id },
-      include: [
-        { model: OrderItem, include: [{ model: Product, attributes: ['name', 'price'] }] }
-      ]
-    });
-    
-    if (!order) {
-      return res.status(404).json({ success: false, message: 'Order not found' });
-    }
-    
-    res.json({ success: true, data: order });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Create new order
-router.post('/', async (req, res) => {
-  try {
-    const { items, shippingAddress, paymentMethod } = req.body;
-    
-    // Calculate total
-    let total = 0;
-    for (const item of items) {
-      const product = await Product.findByPk(item.productId);
-      if (!product) {
-        return res.status(400).json({ success: false, message: `Product ${item.productId} not found` });
-      }
-      total += product.price * item.quantity;
-    }
-    
-    const order = await Order.create({
-      userId: req.user.id,
-      total,
-      status: 'pending',
-      shippingAddress,
-      paymentMethod
-    });
-    
-    // Create order items
-    for (const item of items) {
-      await OrderItem.create({
-        orderId: order.id,
-        productId: item.productId,
-        quantity: item.quantity,
-        price: (await Product.findByPk(item.productId)).price
-      });
-    }
-    
-    res.status(201).json({ success: true, data: order });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    console.error("💥 Fetching Orders Failed!", error);
+    res.status(500).json({ success: false, message: 'Internal server error.' });
   }
 });
 
