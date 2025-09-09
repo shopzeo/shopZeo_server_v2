@@ -169,7 +169,7 @@ async function testAuthAPI() {
     console.log('\n🚀 Next Steps:');
     console.log('1. Test with your frontend application');
     console.log('2. Integrate with real SMS/Email services');
-    console.log('3. Deploy to production with https://linkiin.in');
+    console.log('3. Deploy to production with https://shopzeo.in');
     
   } catch (error) {
     console.error('❌ API testing failed:', error.message);

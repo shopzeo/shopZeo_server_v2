@@ -243,7 +243,7 @@ async function testAuthSystem() {
     console.log('✅ Database Operations: WORKING');
     
     console.log('\n🚀 Your Authentication System is Ready for Production!');
-    console.log('📚 API Endpoints: https://linkiin.in/api/user-auth');
+    console.log('📚 API Endpoints: https://shopzeo.in/api/user-auth');
     console.log('🔧 Test both methods in your frontend application');
     
   } catch (error) {

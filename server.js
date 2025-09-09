@@ -117,14 +117,14 @@ const startServer = async () => {
     // Start server
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📱 Admin Panel: https://linkiin.in/api/auth`);
-      console.log(`🔗 Health Check: https://linkiin.in/health`);
-      console.log(`🏷️  Brands API: https://linkiin.in/api/brands`);
-      console.log(`📁 Categories API: https://linkiin.in/api/categories`);
-      console.log(`📂 Subcategories API: https://linkiin.in/api/subcategories`);
-      console.log(`📦 Products API: https://linkiin.in/api/products`);
-      console.log(`🖼️  Banners API: https://linkiin.in/api/banners`);
-      console.log(`🏪 Stores API: https://linkiin.in/api/stores`);
+      console.log(`📱 Admin Panel: https://shopzeo.in/api/auth`);
+      console.log(`🔗 Health Check: https://shopzeo.in/health`);
+      console.log(`🏷️  Brands API: https://shopzeo.in/api/brands`);
+      console.log(`📁 Categories API: https://shopzeo.in/api/categories`);
+      console.log(`📂 Subcategories API: https://shopzeo.in/api/subcategories`);
+      console.log(`📦 Products API: https://shopzeo.in/api/products`);
+      console.log(`🖼️  Banners API: https://shopzeo.in/api/banners`);
+      console.log(`🏪 Stores API: https://shopzeo.in/api/stores`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
