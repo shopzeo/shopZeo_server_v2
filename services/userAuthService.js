@@ -407,7 +407,7 @@ class UserAuthService {
       }
 
       // Remove sensitive fields from update data
-      const { password, email, phone, role, ...safeUpdateData } = updateData;
+      const { password, email, phone, role, preferences, ...safeUpdateData } = updateData;
 
       await user.update(safeUpdateData);
 
