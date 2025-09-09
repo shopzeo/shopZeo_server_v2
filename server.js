@@ -12,7 +12,6 @@ require('dotenv').config();
 const { testConnection } = require('./config/database');
 const config = require('./config/app');
 
-
 // Step 1: Load all models first
 const models = require('./models');
 
@@ -88,9 +87,6 @@ app.use('/api/admin', bulkImportRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/category-hierarchy', categoryHierarchyRoutes); 
 app.use('/api/orders', orderRoutes); // Order routes are added here
-
-app.use('/api/categories', categoryRoutes);
-app.use('/api/category-hierarchy', categoryHierarchyRoutes); 
 
 // Health check route
 app.get('/health', (req, res) => {
