@@ -11,7 +11,6 @@ LIVE_API_URL=https://shopzeo.in/api
 CORS_ORIGIN=https://shopzeo.in
 ALLOWED_ORIGINS=https://shopzeo.in,http://localhost:3000
 
-
 # Database Configuration
 DB_HOST=localhost
 DB_PORT=3306
