@@ -1,2 +1,6 @@
 node_modules
 .env
+env_production.text
+.env_development.text
+.DS_Store
+env_local.text

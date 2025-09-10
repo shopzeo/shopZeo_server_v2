@@ -71,7 +71,7 @@ const Store = sequelize.define('Store', {
   },
   gst_number: {
     type: DataTypes.STRING(15),
-    allowNull: true,
+    allowNull: true, // <-- Changed from false to true
     unique: true,
     validate: {
       // Custom validation to check length only if a value is provided
@@ -88,7 +88,11 @@ const Store = sequelize.define('Store', {
   },
   gst_percentage: {
     type: DataTypes.DECIMAL(5, 2),
+<<<<<<< HEAD
     allowNull: true,
+=======
+    allowNull: true, // <-- Changed from false to true
+>>>>>>> da2582d (banner added issue resolve)
     defaultValue: 18.00,
     validate: {
       min: 0,
