@@ -12,7 +12,6 @@ require('dotenv').config();
 const { testConnection } = require('./config/database');
 const config = require('./config/app');
 
-
 // Step 1: Load all models first
 const models = require('./models');
 
