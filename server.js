@@ -1,3 +1,5 @@
+// server.js (top of file)
+require('dotenv').config(); // <--- load .env immediately
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,6 +11,7 @@ require('dotenv').config();
 
 const { testConnection } = require('./config/database');
 const config = require('./config/app');
+
 
 // Step 1: Load all models first
 const models = require('./models');
@@ -135,6 +138,7 @@ const startServer = async () => {
     console.error('Failed to start server:', error);
     process.exit(1);
   }
+  
 };
 
 startServer();
