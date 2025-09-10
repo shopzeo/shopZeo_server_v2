@@ -408,7 +408,6 @@ exports.refreshToken = async (req, res) => {
       success: true,
       message: 'Token refreshed successfully',
       data: {
-        token: newToken,
         user: {
           id: user.id,
           first_name: user.first_name,

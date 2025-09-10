@@ -9,20 +9,25 @@ require('dotenv').config();
 
 const { testConnection } = require('./config/database');
 const config = require('./config/app');
-// Load model associations
-require('./models/associations');
+
+// Step 1: Load all models first
+const models = require('./models');
+
+// Step 2: Then, set up their associations
+const setupAssociations = require('./models/associations');
+setupAssociations(models);
+
 const authRoutes = require('./routes/auth');
 const userAuthRoutes = require('./routes/userAuth');
 const brandRoutes = require('./routes/brands');
 const categoryRoutes = require('./routes/categories');
 const subCategoryRoutes = require('./routes/subCategoryRoutes');
 const productRoutes = require('./routes/products');
-const orderRoutes = require('./routes/orders');
-const walletRoutes = require('./routes/wallets');
 const bannerRoutes = require('./routes/banners');
 const storeRoutes = require('./routes/stores');
 const bulkImportRoutes = require('./routes/bulkImport');
 const categoryHierarchyRoutes = require('./routes/categoryHierarchy');
+const orderRoutes = require('./routes/orders'); // Make sure this is also imported
 
 const app = express();
 const PORT = config.PORT;
@@ -73,14 +78,13 @@ app.use('/api/brands', brandRoutes);
 
 app.use('/api/subcategories', subCategoryRoutes);
 app.use('/api/products', productRoutes);
-app.use('/api/orders', orderRoutes);
-app.use('/api/wallets', walletRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/admin', bulkImportRoutes);
 
 app.use('/api/categories', categoryRoutes);
 app.use('/api/category-hierarchy', categoryHierarchyRoutes); 
+app.use('/api/orders', orderRoutes); // Order routes are added here
 
 // Health check route
 app.get('/health', (req, res) => {

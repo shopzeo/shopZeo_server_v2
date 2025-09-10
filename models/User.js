@@ -111,20 +111,7 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING(20),
     allowNull: true
   },
-  // Customer specific fields
-  default_shipping_address: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  default_billing_address: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  preferences: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    defaultValue: {}
-  }
+  // The 'preferences' field has been removed to match the database schema.
 }, {
   tableName: 'users',
   timestamps: true,
