@@ -79,7 +79,7 @@ const Store = sequelize.define('Store', {
   },
   gst_percentage: {
     type: DataTypes.DECIMAL(5, 2),
-    allowNull: false,
+    allowNull: true,
     defaultValue: 18.00,
     validate: {
       min: 0,
