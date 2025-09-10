@@ -70,7 +70,7 @@ app.use('/uploads', (req, res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/user-auth', userAuthRoutes);
 app.use('/api/brands', brandRoutes);
-app.use('/api/categories', categoryRoutes);
+
 app.use('/api/subcategories', subCategoryRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/orders', orderRoutes);
@@ -78,7 +78,9 @@ app.use('/api/wallets', walletRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/admin', bulkImportRoutes);
-app.use('/api/categories', categoryHierarchyRoutes);
+
+app.use('/api/categories', categoryRoutes);
+app.use('/api/category-hierarchy', categoryHierarchyRoutes); 
 
 // Health check route
 app.get('/health', (req, res) => {
