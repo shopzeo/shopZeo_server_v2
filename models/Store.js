@@ -71,7 +71,7 @@ const Store = sequelize.define('Store', {
   },
   gst_number: {
     type: DataTypes.STRING(15),
-    allowNull: true, // <-- Changed from false to true
+    allowNull: true,
     unique: true,
     validate: {
       // Custom validation to check length only if a value is provided
