@@ -108,13 +108,13 @@ const createBrand = async (req, res) => {
 
     // Handle file uploads
     let uploadedFiles = {};
-    console.log("🚀 ~ createBrand ~ req:", req.files)
+    console.log(" ~ createBrand ~ req:", req.files)
     if (req.files) {
-      console.log("🚀 ~ createBrand ~  in files:", req.files)
+      console.log("~ createBrand ~  in files:", req.files)
 
       uploadedFiles = await handleFileUpload(req.files);
     }
-    console.log("🚀 ~ createBrand ~ uploadedFiles:", uploadedFiles)
+    console.log("~ createBrand ~ uploadedFiles:", uploadedFiles)
 
     // Create brand
     const brand = await Brand.create({
