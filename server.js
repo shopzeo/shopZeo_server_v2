@@ -89,6 +89,9 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/category-hierarchy', categoryHierarchyRoutes); 
 app.use('/api/orders', orderRoutes); // Order routes are added here
 
+app.use('/api/categories', categoryRoutes);
+app.use('/api/category-hierarchy', categoryHierarchyRoutes); 
+
 // Health check route
 app.get('/health', (req, res) => {
   res.json({
