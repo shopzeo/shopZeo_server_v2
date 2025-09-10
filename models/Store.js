@@ -88,11 +88,7 @@ const Store = sequelize.define('Store', {
   },
   gst_percentage: {
     type: DataTypes.DECIMAL(5, 2),
-<<<<<<< HEAD
     allowNull: true,
-=======
-    allowNull: true, // <-- Changed from false to true
->>>>>>> da2582d (banner added issue resolve)
     defaultValue: 18.00,
     validate: {
       min: 0,
