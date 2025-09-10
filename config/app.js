@@ -6,12 +6,12 @@ const config = {
   NODE_ENV: process.env.NODE_ENV || 'development',
   
   // Base URL Configuration
-  BASE_URL: process.env.BASE_URL || 'https://linkiin.in',
-  LIVE_API_URL: process.env.LIVE_API_URL || 'https://linkiin.in/api',
+  BASE_URL: process.env.BASE_URL || 'https://shopzeo.in',
+  LIVE_API_URL: process.env.LIVE_API_URL || 'https://shopzeo.in/api',
   
   // Cross-Origin Configuration
-  CORS_ORIGIN: process.env.CORS_ORIGIN || 'https://linkiin.in',
-  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://linkiin.in'],
+  CORS_ORIGIN: process.env.CORS_ORIGIN || 'https://shopzeo.in',
+  ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['https://shopzeo.in'],
   
   // Database Configuration
   DB_HOST: process.env.DB_HOST || 'localhost',

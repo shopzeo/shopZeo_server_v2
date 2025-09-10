@@ -62,9 +62,9 @@ CREATE TABLE `banners` (
 --
 
 INSERT INTO banners (id, title, subtitle, description, image, banner_type, button_text, button_url, is_active, is_featured, sort_order, clicks, impressions, ctr, created_at, updated_at) VALUES
-(1, 'Home Appliances', 'Transform Your Home', 'Discover premium home appliances and kitchen essentials.', 'https://linkiin.in/uploads/banners/banner-1755809762268-699131231.jpeg', NULL, 'main_banner', '', NULL, NULL, 'Get Yours', '/products/home-appliances', NULL, NULL, 1, 1, 1, 0, 0, 0.00, NULL, NULL, NULL, NOW(), NOW()),
-(2, 'Electronics', 'Latest Tech Gadgets', 'Shop the newest electronics and other electronic devices.', 'https://linkiin.in/uploads/banners/banner-1755809886301-157616563.jpeg', NULL, 'category_banner', '', NULL, NULL, 'Shop Now', '/products/electronics', NULL, NULL, 1, 1, 2, 0, 0, 0.00, NULL, NULL, NULL, NOW(), NOW()),
-(3, 'Kitchen Appliances', 'Transform Your Kitchen', 'Premium quality kitchen appliances for modern homes.', 'https://linkiin.in/uploads/banners/banner-1755809932151-228409246.jpeg', NULL, 'product_banner', '', NULL, NULL, 'Explore', '/products/kitchen-appliances', NULL, NULL, 1, 0, 3, 0, 0, 0.00, NULL, NULL, NULL, NOW(), NOW());
+(1, 'Home Appliances', 'Transform Your Home', 'Discover premium home appliances and kitchen essentials.', 'https://shopzeo.in/uploads/banners/banner-1755809762268-699131231.jpeg', NULL, 'main_banner', '', NULL, NULL, 'Get Yours', '/products/home-appliances', NULL, NULL, 1, 1, 1, 0, 0, 0.00, NULL, NULL, NULL, NOW(), NOW()),
+(2, 'Electronics', 'Latest Tech Gadgets', 'Shop the newest electronics and other electronic devices.', 'https://shopzeo.in/uploads/banners/banner-1755809886301-157616563.jpeg', NULL, 'category_banner', '', NULL, NULL, 'Shop Now', '/products/electronics', NULL, NULL, 1, 1, 2, 0, 0, 0.00, NULL, NULL, NULL, NOW(), NOW()),
+(3, 'Kitchen Appliances', 'Transform Your Kitchen', 'Premium quality kitchen appliances for modern homes.', 'https://shopzeo.in/uploads/banners/banner-1755809932151-228409246.jpeg', NULL, 'product_banner', '', NULL, NULL, 'Explore', '/products/kitchen-appliances', NULL, NULL, 1, 0, 3, 0, 0, 0.00, NULL, NULL, NULL, NOW(), NOW());
 
 --
 -- Indexes for dumped tables

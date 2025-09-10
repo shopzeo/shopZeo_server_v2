@@ -1,10 +1,140 @@
 const Store = require('../models/Store');
 const User = require('../models/User');
+const { sequelize } = require('../config/database');
 const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 
 // Create a new store with vendor user account
+// const createStore = async (req, res) => {
+//   try {
+//     const {
+//       name,
+//       description,
+//       address,
+//       city,
+//       state,
+//       country,
+//       postal_code,
+//       phone,
+//       email,
+//       password,
+//       gst_number,
+//       gst_percentage,
+//       pan_number,
+//       business_type
+//     } = req.body;
+
+//     // Check if email already exists
+//     const existingUser = await User.findOne({ where: { email } });
+//     if (existingUser) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'A user with this email already exists'
+//       });
+//     }
+
+//     // Check if store name already exists
+//     const existingStore = await Store.findOne({ where: { name } });
+//     if (existingStore) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'A store with this name already exists'
+//       });
+//     }
+
+//     // Check if GST number already exists
+//     const existingGST = await Store.findOne({ where: { gst_number } });
+//     if (existingGST) {
+//       return res.status(400).json({
+//         success: false,
+//         message: 'A store with this GST number already exists'
+//       });
+//     }
+
+//     // Create vendor user account
+//     const vendorUser = await User.create({
+//       first_name: name.split(' ')[0] || 'Vendor',
+//       last_name: name.split(' ').slice(1).join(' ') || 'User',
+//       email,
+//       password,
+//       phone,
+//       role: 'vendor',
+//       is_active: true,
+//       is_verified: false,
+//       address,
+//       city,
+//       state,
+//       country,
+//       postal_code
+//     });
+
+//     // Generate slug from store name
+//     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+//     // Create store linked to vendor user
+//     const store = await Store.create({
+//       name,
+//       slug,
+//       description,
+//       address,
+//       city,
+//       state,
+//       country,
+//       postal_code,
+//       phone,
+//       email,
+//       gst_number,
+//       gst_percentage: parseFloat(gst_percentage) || 18.00,
+//       pan_number,
+//       business_type,
+//       owner_id: vendorUser.id,
+//       meta_title: `${name} - Online Store`,
+//       meta_description: description || `Shop at ${name} for the best products and deals`,
+//       meta_keywords: `${name}, online store, shopping, ${business_type}`
+//     });
+
+//     res.status(201).json({
+//       success: true,
+//       message: 'Store and vendor account created successfully',
+//       data: {
+//         store: {
+//           id: store.id,
+//           name: store.name,
+//           slug: store.slug,
+//           email: store.email,
+//           phone: store.phone,
+//           address: store.address,
+//           city: store.city,
+//           state: store.state,
+//           country: store.country,
+//           postal_code: store.postal_code,
+//           gst_number: store.gst_number,
+//           gst_percentage: store.gst_percentage,
+//           pan_number: store.pan_number,
+//           business_type: store.business_type,
+//           is_active: store.is_active,
+//           is_verified: store.is_verified
+//         },
+//         vendor: {
+//           id: vendorUser.id,
+//           email: vendorUser.email,
+//           role: vendorUser.role,
+//           is_active: vendorUser.is_active,
+//           is_verified: vendorUser.is_verified
+//         }
+//       }
+//     });
+//   } catch (error) {
+//     console.error('Create store error:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to create store',
+//       error: error.message
+//     });
+//   }
+// };
 const createStore = async (req, res) => {
+  const t = await sequelize.transaction();
   try {
     const {
       name,
@@ -16,32 +146,83 @@ const createStore = async (req, res) => {
       postal_code,
       phone,
       email,
-      password,
+      password, // Password is now optional
       gst_number,
       gst_percentage,
       pan_number,
       business_type
     } = req.body;
 
-    // Check if email already exists
-    const existingUser = await User.findOne({ where: { email } });
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: 'A user with this email already exists'
-      });
+    // --- Start of Modified Logic ---
+     if (gst_number) {
+      const existingGST = await Store.findOne({ where: { gst_number } });
+      if (existingGST) {
+        // No need to rollback here as we haven't done anything yet.
+        return res.status(400).json({
+            success: false,
+            message: 'A store with this GST number already exists'
+        });
+      }
     }
 
-    // Check if store name already exists
-    const existingStore = await Store.findOne({ where: { name } });
-    if (existingStore) {
+
+    let vendorUser;
+    let isNewUser = false;
+
+    // 1. Check if a user with this email already exists
+    const existingUser = await User.findOne({ where: { email } });
+
+    if (existingUser) {
+      if (existingUser.role === 'vendor' || existingUser.role === 'admin') {
+        return res.status(403).json({
+            success: false,
+            message: 'This user is already a vendor or an admin and cannot create a new store.'
+        });
+      }
+      
+      // User is a 'customer', upgrade them to 'vendor'
+      existingUser.role = 'vendor';
+      await existingUser.save({ transaction: t });
+     
+      vendorUser = existingUser;
+
+    } else {
+      // User does not exist, create a new vendor user
+      if (!password) {
+        await t.rollback();
+        return res.status(400).json({
+          success: false,
+         message: 'Password is required for creating a new vendor account.'
+      
+        });
+      }
+      isNewUser = true;
+      vendorUser = await User.create({
+        first_name: name.split(' ')[0] || 'Vendor',
+        last_name: name.split(' ').slice(1).join(' ') || 'User',
+        email,
+        password,
+        phone,
+        role: 'vendor',
+        is_active: true,
+        is_verified: true, // Verification should be a separate step
+        address,
+        city,
+        state,
+        country,
+        postal_code
+      }, { transaction: t });
+    }
+
+    // 2. Check for duplicate store details (name and GST)
+    const existingStoreName = await Store.findOne({ where: { name } });
+    if (existingStoreName) {
       return res.status(400).json({
         success: false,
         message: 'A store with this name already exists'
       });
     }
 
-    // Check if GST number already exists
     const existingGST = await Store.findOne({ where: { gst_number } });
     if (existingGST) {
       return res.status(400).json({
@@ -49,28 +230,15 @@ const createStore = async (req, res) => {
         message: 'A store with this GST number already exists'
       });
     }
+    
+    // --- End of Modified Logic ---
 
-    // Create vendor user account
-    const vendorUser = await User.create({
-      first_name: name.split(' ')[0] || 'Vendor',
-      last_name: name.split(' ').slice(1).join(' ') || 'User',
-      email,
-      password,
-      phone,
-      role: 'vendor',
-      is_active: true,
-      is_verified: false,
-      address,
-      city,
-      state,
-      country,
-      postal_code
-    });
+    // 3. Create the store
+        const baseSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const uniqueSuffix = Date.now().toString(36) + Math.random().toString(36).substring(2, 7);
+    const slug = `${baseSlug}-${uniqueSuffix}`;
 
-    // Generate slug from store name
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
-    // Create store linked to vendor user
     const store = await Store.create({
       name,
       slug,
@@ -86,53 +254,53 @@ const createStore = async (req, res) => {
       gst_percentage: parseFloat(gst_percentage) || 18.00,
       pan_number,
       business_type,
-      owner_id: vendorUser.id,
+      owner_id: vendorUser.id, // Link to the existing or new user
       meta_title: `${name} - Online Store`,
       meta_description: description || `Shop at ${name} for the best products and deals`,
       meta_keywords: `${name}, online store, shopping, ${business_type}`
-    });
+    }, { transaction: t }); 
+    await t.commit();
 
     res.status(201).json({
       success: true,
-      message: 'Store and vendor account created successfully',
+      message: `Store and vendor account ${isNewUser ? 'created' : 'updated'} successfully`,
       data: {
         store: {
           id: store.id,
           name: store.name,
           slug: store.slug,
-          email: store.email,
-          phone: store.phone,
-          address: store.address,
-          city: store.city,
-          state: store.state,
-          country: store.country,
-          postal_code: store.postal_code,
-          gst_number: store.gst_number,
-          gst_percentage: store.gst_percentage,
-          pan_number: store.pan_number,
-          business_type: store.business_type,
-          is_active: store.is_active,
-          is_verified: store.is_verified
+          email: store.email
         },
         vendor: {
           id: vendorUser.id,
           email: vendorUser.email,
-          role: vendorUser.role,
-          is_active: vendorUser.is_active,
-          is_verified: vendorUser.is_verified
+          role: vendorUser.role
         }
       }
     });
   } catch (error) {
+   await t.rollback();
+
     console.error('Create store error:', error);
+    // Handle potential validation errors from Sequelize
+    // if (error.name === 'SequelizeValidationError') {
+    //   const messages = error.errors.map(e => e.message);
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: 'Validation failed',
+    //     errors: messages
+    //   });
+    // }
+     
+    console.error('Create store error:', error);
+   
     res.status(500).json({
       success: false,
-      message: 'Failed to create store',
+       message: 'Failed to create store due to an internal error.',
       error: error.message
     });
   }
 };
-
 // Get all stores with pagination and search
 const getAllStores = async (req, res) => {
   try {

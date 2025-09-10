@@ -107,7 +107,7 @@ class UserAuthService {
         phone: userData.phone || null,
         password: userData.password,
         role: userData.role || 'customer',
-        is_verified: false, // Email verification required
+        is_verified: true, // Email verification required
         email_verified_at: null,
         phone_verified_at: null
       });

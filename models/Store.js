@@ -10,7 +10,7 @@ const Store = sequelize.define('Store', {
   name: {
     type: DataTypes.STRING(255),
     allowNull: false,
-    unique: true,
+   
     validate: {
       notEmpty: true,
       len: [2, 255]
@@ -71,7 +71,7 @@ const Store = sequelize.define('Store', {
   },
   gst_number: {
     type: DataTypes.STRING(15),
-    allowNull: false,
+    allowNull: true,
     unique: true,
     validate: {
       len: [15, 15]
@@ -86,9 +86,9 @@ const Store = sequelize.define('Store', {
       max: 100
     }
   },
-  pan_number: {
+ pan_number: {
     type: DataTypes.STRING(10),
-    allowNull: true,
+    allowNull: false,
     validate: {
       len: [10, 10]
     }
