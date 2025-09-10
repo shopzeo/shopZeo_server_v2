@@ -71,15 +71,24 @@ const Store = sequelize.define('Store', {
   },
   gst_number: {
     type: DataTypes.STRING(15),
-    allowNull: true,
+    allowNull: true, // <-- Changed from false to true
     unique: true,
     validate: {
-      len: [15, 15]
+      // Custom validation to check length only if a value is provided
+      isGstValid(value) {
+        // Allow null or empty strings
+        if (!value) return;
+        
+        // If a value is given, it must be 15 characters
+        if (value.length !== 15) {
+          throw new Error('GST Number must be 15 characters long.');
+        }
+      }
     }
   },
   gst_percentage: {
     type: DataTypes.DECIMAL(5, 2),
-    allowNull: false,
+    allowNull: true, // <-- Changed from false to true
     defaultValue: 18.00,
     validate: {
       min: 0,

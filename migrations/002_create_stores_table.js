@@ -44,16 +44,31 @@ module.exports = {
         allowNull: true
       },
       gst_number: {
-        type: Sequelize.STRING(20),
-        allowNull: true,
-        comment: 'GST registration number'
-      },
-      gst_percentage: {
-        type: Sequelize.DECIMAL(5, 2),
-        allowNull: true,
-        defaultValue: 0,
-        comment: 'Default GST percentage for store'
-      },
+    type: DataTypes.STRING(15),
+    allowNull: true, // <-- Changed from false to true
+    unique: true,
+    validate: {
+      // Custom validation to check length only if a value is provided
+      isGstValid(value) {
+        // Allow null or empty strings
+        if (!value) return;
+        
+        // If a value is given, it must be 15 characters
+        if (value.length !== 15) {
+          throw new Error('GST Number must be 15 characters long.');
+        }
+      }
+    }
+  },
+     gst_percentage: {
+    type: DataTypes.DECIMAL(5, 2),
+    allowNull: true, // <-- Changed from false to true
+    defaultValue: 18.00,
+    validate: {
+      min: 0,
+      max: 100
+    }
+  },
       is_active: {
         type: Sequelize.BOOLEAN,
         defaultValue: true
