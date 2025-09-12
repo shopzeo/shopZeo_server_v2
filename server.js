@@ -21,7 +21,7 @@ const setupAssociations = require('./models/associations');
 setupAssociations(models);
 
 const authRoutes = require('./routes/auth');
-const userAuthRoutes = require('./routes/userAuth');git rm .env
+const userAuthRoutes = require('./routes/userAuth');
 
 const brandRoutes = require('./routes/brands');
 const categoryRoutes = require('./routes/categories');
