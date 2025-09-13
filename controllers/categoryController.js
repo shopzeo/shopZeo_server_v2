@@ -186,6 +186,7 @@ exports.getCategories = async (req, res) => {
   }
 };
 
+
 // Get single category by ID
 exports.getCategory = async (req, res) => {
   try {
@@ -581,6 +582,11 @@ exports.toggleCategoryStatus = async (req, res) => {
     });
   }
 };
+
+
+
+
+
 
 // Export categories
 exports.exportCategories = async (req, res) => {
