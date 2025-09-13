@@ -59,110 +59,107 @@ const handleFileUpload = async (file) => {
 // Get all categories with pagination and search
 exports.getCategories = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '', level = '', parent_id = '' } = req.query;
-    const offset = (page - 1) * limit;
-    
+    const { search = "", level = "", parent_id = "" } = req.query;
+
     // Build where clause
     const whereClause = {};
     if (search) {
-      whereClause[Op.or] = [
-        { name: { [Op.like]: `%${search}%` } }
-      ];
+      whereClause[Op.or] = [{ name: { [Op.like]: `%${search}%` } }];
     }
-    
+
     // Only add level filter if the level field exists in the database
-    if (level && level !== '') {
+    if (level && level !== "") {
       try {
         whereClause.level = level;
       } catch (error) {
-        console.log('Level field not available in database schema');
+        console.log("Level field not available in database schema");
       }
     }
-    
-    if (parent_id !== '') {
-      whereClause.parent_id = parent_id === 'null' ? null : parent_id;
+
+    if (parent_id !== "") {
+      whereClause.parent_id = parent_id === "null" ? null : parent_id;
     }
-    
-    // Get categories with count and include subcategories
-    const { count, rows: categories } = await Category.findAndCountAll({
+
+    // Get all categories (no limit, no offset)
+    const categories = await Category.findAll({
       where: whereClause,
-      limit: parseInt(limit),
-      offset: parseInt(offset),
-      order: [['sort_order', 'ASC'], ['createdAt', 'DESC']],
+      order: [
+        ["sort_order", "ASC"],
+        ["createdAt", "DESC"],
+      ],
       include: [
         {
-          model: require('../models/SubCategory'),
-          as: 'subCategories',
-          attributes: ['id', 'name', 'slug', 'priority', 'is_active', 'meta_title', 'meta_description', 'meta_keywords', 'createdAt', 'updatedAt'],
+          model: require("../models/SubCategory"),
+          as: "subCategories",
+          attributes: [
+            /* ... */
+          ],
           where: { is_active: true },
-          required: false
-        }
-      ]
+          required: false,
+        },
+      ],
+      
     });
-    
+
+
+
     // Format categories and rename subCategories to subcategories
-    const formattedCategories = categories.map(category => {
+    const formattedCategories = categories.map((category) => {
       const categoryData = category.toJSON();
-      
+
       // Format main category image
-      if (categoryData.image) {
-        if (!categoryData.image.startsWith('http')) {
-          categoryData.image = config.getImageUrl(categoryData.image);
-        }
+      if (categoryData.image && !categoryData.image.startsWith("http")) {
+        categoryData.image = config.getImageUrl(categoryData.image);
       }
-      
-      // Rename subCategories to subcategories and format the data
+
+      // Rename subCategories to subcategories
       if (categoryData.subCategories) {
-        categoryData.subcategories = categoryData.subCategories.map(subCat => ({
-          id: subCat.id,
-          name: subCat.name,
-          slug: subCat.slug,
-          priority: subCat.priority,
-          is_active: subCat.is_active,
-          meta_title: subCat.meta_title,
-          meta_description: subCat.meta_description,
-          meta_keywords: subCat.meta_keywords,
-          createdAt: subCat.createdAt,
-          updatedAt: subCat.updatedAt
-        }));
-        // Remove the original subCategories field
+        categoryData.subcategories = categoryData.subCategories.map(
+          (subCat) => ({
+            id: subCat.id,
+            name: subCat.name,
+            slug: subCat.slug,
+            priority: subCat.priority,
+            is_active: subCat.is_active,
+            meta_title: subCat.meta_title,
+            meta_description: subCat.meta_description,
+            meta_keywords: subCat.meta_keywords,
+            createdAt: subCat.createdAt,
+            updatedAt: subCat.updatedAt,
+          })
+        );
         delete categoryData.subCategories;
       } else {
         categoryData.subcategories = [];
       }
-      
+
       return categoryData;
     });
-    
-    // Get all categories for parent selection (excluding current category if editing)
+
+    // Get all categories for parent selection
     const allCategories = await Category.findAll({
       where: { is_active: true },
-      attributes: ['id', 'name', 'level'],
-      order: [['name', 'ASC']]
+      attributes: ["id", "name", "level"],
+      order: [["name", "ASC"]],
     });
-    
+
     res.json({
       success: true,
       data: {
         categories: formattedCategories,
         allCategories,
-        pagination: {
-          currentPage: parseInt(page),
-          totalPages: Math.ceil(count / limit),
-          totalItems: count,
-          itemsPerPage: parseInt(limit)
-        }
-      }
+      },
     });
   } catch (error) {
-    console.error('Get categories error:', error);
+    console.error("Get categories error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch categories',
-      error: error.message
+      message: "Failed to fetch categories",
+      error: error.message,
     });
   }
 };
+
 
 // Get single category by ID
 exports.getCategory = async (req, res) => {
@@ -511,39 +508,44 @@ exports.toggleCategoryStatus = async (req, res) => {
   try {
     const { id } = req.params;
     const { field } = req.body; // 'isActive' or 'isHomeCategory'
-    
-    if (!['isActive', 'isHomeCategory'].includes(field)) {
+
+    if (!["is_active", "isHomeCategory"].includes(field)) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid field to toggle'
+        message: "Invalid field to toggle",
       });
     }
-    
+
     const category = await Category.findByPk(id);
     if (!category) {
       return res.status(404).json({
         success: false,
-        message: 'Category not found'
+        message: "Category not found",
       });
     }
-    
+
     const newValue = !category[field];
     await category.update({ [field]: newValue });
-    
+
     res.json({
       success: true,
       message: `${field} updated successfully`,
-      data: { [field]: newValue }
+      data: { [field]: newValue },
     });
   } catch (error) {
-    console.error('Toggle category status error:', error);
+    console.error("Toggle category status error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to toggle category status',
-      error: error.message
+      message: "Failed to toggle category status",
+      error: error.message,
     });
   }
 };
+
+
+
+
+
 
 // Export categories
 exports.exportCategories = async (req, res) => {
