@@ -59,7 +59,7 @@ const handleFileUpload = async (file) => {
 // Get all categories with pagination and search
 exports.getCategories = async (req, res) => {
   try {
-    const { page = 1, limit = 10, search = '', level = '', parentId = '' } = req.query;
+    const { page = 1, limit = 10, search = '', level = '', parent_id = '' } = req.query;
     const offset = (page - 1) * limit;
     
     // Build where clause
@@ -79,8 +79,8 @@ exports.getCategories = async (req, res) => {
       }
     }
     
-    if (parentId !== '') {
-      whereClause.parent_id = parentId === 'null' ? null : parentId;
+    if (parent_id !== '') {
+      whereClause.parent_id = parent_id === 'null' ? null : parent_id;
     }
     
     // Get categories with count and include subcategories
@@ -212,7 +212,7 @@ exports.createCategory = async (req, res) => {
       description,
       priority = 0,
       isActive = true,
-      parentId = null,
+      parent_id = null,
       metaTitle,
       metaDescription,
       metaKeywords
@@ -221,7 +221,7 @@ exports.createCategory = async (req, res) => {
     // Convert string values to proper types
     const priorityInt = parseInt(priority) || 0;
     const isActiveBool = isActive === 'true' || isActive === true;
-    const parentIdInt = parentId && parentId !== '' ? parseInt(parentId) : null;
+    const parent_idInt = parent_id && parent_id !== '' ? parseInt(parent_id) : null;
     
     // Validate required fields
     if (!name) {
@@ -245,8 +245,8 @@ exports.createCategory = async (req, res) => {
     
     // Determine level
     let level = 1;
-    if (parentIdInt) {
-      const parentCategory = await Category.findByPk(parentIdInt);
+    if (parent_idInt) {
+      const parentCategory = await Category.findByPk(parent_idInt);
       if (parentCategory) {
         level = parentCategory.level + 1;
         if (level > 3) {
@@ -271,7 +271,7 @@ exports.createCategory = async (req, res) => {
       slug,
       description: description || null,
       image: image || null,
-      parent_id: parentIdInt,
+      parent_id: parent_idInt,
       level,
       sort_order: priorityInt,
       is_active: isActiveBool,
@@ -315,7 +315,7 @@ exports.updateCategory = async (req, res) => {
       description,
       priority,
       isActive,
-      parentId,
+      parent_id,
       metaTitle,
       metaDescription,
       metaKeywords
@@ -331,8 +331,8 @@ exports.updateCategory = async (req, res) => {
     }
     
     // Validate parent category (prevent circular reference)
-    if (parentId && parentId !== category.parentId) {
-      if (parseInt(parentId) === parseInt(id)) {
+    if (parent_id && parent_id !== category.parent_id) {
+      if (parseInt(parent_id) === parseInt(id)) {
         return res.status(400).json({
           success: false,
           message: 'Category cannot be its own parent'
@@ -340,7 +340,7 @@ exports.updateCategory = async (req, res) => {
       }
       
       // Check if new parent is a child of current category
-      const isChild = await checkIfChildCategory(id, parentId);
+      const isChild = await checkIfChildCategory(id, parent_id);
       if (isChild) {
         return res.status(400).json({
           success: false,
@@ -386,9 +386,9 @@ exports.updateCategory = async (req, res) => {
     
     // Determine new level
     let level = category.level;
-    if (parentId !== category.parentId) {
-      if (parentId) {
-        const parentCategory = await Category.findByPk(parentId);
+    if (parent_id !== category.parent_id) {
+      if (parent_id) {
+        const parentCategory = await Category.findByPk(parent_id);
         level = parentCategory ? parentCategory.level + 1 : 1;
       } else {
         level = 1;
@@ -410,7 +410,7 @@ exports.updateCategory = async (req, res) => {
       image,
       sort_order: priority !== undefined ? parseInt(priority) : category.sort_order,
       is_active: isActive !== undefined ? Boolean(isActive) : category.is_active,
-      parent_id: parentId !== undefined ? (parentId || null) : category.parent_id,
+      parent_id: parent_id !== undefined ? (parent_id || null) : category.parent_id,
       level,
       meta_title: metaTitle !== undefined ? metaTitle : category.meta_title,
       meta_description: metaDescription !== undefined ? metaDescription : category.meta_description,
@@ -458,7 +458,7 @@ exports.deleteCategory = async (req, res) => {
     }
     
     // Check if category has children
-    const childCount = await Category.count({ where: { parentId: id } });
+    const childCount = await Category.count({ where: { parent_id: id } });
     if (childCount > 0) {
       return res.status(400).json({
         success: false,
@@ -590,9 +590,9 @@ exports.exportCategories = async (req, res) => {
 };
 
 // Helper function to check if a category is a child of another
-async function checkIfChildCategory(parentId, childId) {
+async function checkIfChildCategory(parent_id, childId) {
   const children = await Category.findAll({
-    where: { parentId: parseInt(parentId) }
+    where: { parent_id: parseInt(parent_id) }
   });
   
   for (const child of children) {
