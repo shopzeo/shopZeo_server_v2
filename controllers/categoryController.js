@@ -61,6 +61,15 @@ const handleFileUpload = async (file) => {
 // Get all categories with pagination and search
 exports.getCategories = async (req, res) => {
   try {
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      level = "",
+      parent_id = "",
+    } = req.query;
+    const offset = (page - 1) * limit;
+
     // Build where clause
     const whereClause = {};
     if (search) {
@@ -83,6 +92,8 @@ exports.getCategories = async (req, res) => {
     // Get categories with count and include subcategories
     const { count, rows: categories } = await Category.findAndCountAll({
       where: whereClause,
+      limit: parseInt(limit),
+      offset: parseInt(offset),
       order: [
         ["sort_order", "ASC"],
         ["createdAt", "DESC"],
@@ -159,9 +170,9 @@ exports.getCategories = async (req, res) => {
         allCategories,
         pagination: {
           currentPage: parseInt(page),
-          
+          totalPages: Math.ceil(count / limit),
           totalItems: count,
-          
+          itemsPerPage: parseInt(limit),
         },
       },
     });
