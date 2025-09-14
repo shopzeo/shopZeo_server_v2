@@ -1,45 +1,48 @@
-const Category = require('../models/Category');
-const { Op } = require('sequelize');
-const path = require('path');
-const fs = require('fs').promises;
-const config = require('../config/app');
-const liveServerSync = require('../services/liveServerSync');
+const Category = require("../models/Category");
+const { Op } = require("sequelize");
+const path = require("path");
+const fs = require("fs").promises;
+const config = require("../config/app");
+const liveServerSync = require("../services/liveServerSync");
 
 // Helper function to generate slug
 const generateSlug = (name) => {
-  return name.toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim('-');
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .trim("-");
 };
 
 // Helper function to handle file upload
 const handleFileUpload = async (file) => {
   if (!file) {
-    throw new Error('No file provided');
+    throw new Error("No file provided");
   }
 
   try {
-    console.log('Processing category image upload:', {
+    console.log("Processing category image upload:", {
       originalname: file.originalname,
       mimetype: file.mimetype,
-      size: file.size
+      size: file.size,
     });
 
     // Create upload directory if it doesn't exist
-    const uploadDir = 'uploads/categories';
-    const fullUploadDir = path.join(__dirname, '..', uploadDir);
+    const uploadDir = "uploads/categories";
+    const fullUploadDir = path.join(__dirname, "..", uploadDir);
     await fs.mkdir(fullUploadDir, { recursive: true });
 
     // Generate unique filename with proper extension handling
     const timestamp = Date.now();
-    const originalName = file.originalname || 'category';
-    const extension = path.extname(originalName) || '.jpg';
-    const filename = `category-${timestamp}-${Math.round(Math.random() * 1E9)}${extension}`;
+    const originalName = file.originalname || "category";
+    const extension = path.extname(originalName) || ".jpg";
+    const filename = `category-${timestamp}-${Math.round(
+      Math.random() * 1e9
+    )}${extension}`;
     const filepath = path.join(fullUploadDir, filename);
 
-    console.log('Saving category image to:', filepath);
+    console.log("Saving category image to:", filepath);
 
     // Save file using buffer
     await fs.writeFile(filepath, file.buffer);
@@ -47,11 +50,10 @@ const handleFileUpload = async (file) => {
     // Return relative path (will be converted to full URL in response)
     const imageUrl = `/uploads/categories/${filename}`;
 
-    console.log('Category image uploaded successfully:', imageUrl);
+    console.log("Category image uploaded successfully:", imageUrl);
     return imageUrl;
-
   } catch (error) {
-    console.error('Category image upload error:', error);
+    console.error("Category image upload error:", error);
     throw new Error(`Category image upload failed: ${error.message}`);
   }
 };
@@ -59,8 +61,6 @@ const handleFileUpload = async (file) => {
 // Get all categories with pagination and search
 exports.getCategories = async (req, res) => {
   try {
-    const { search = "", level = "", parent_id = "" } = req.query;
-
     // Build where clause
     const whereClause = {};
     if (search) {
@@ -80,8 +80,8 @@ exports.getCategories = async (req, res) => {
       whereClause.parent_id = parent_id === "null" ? null : parent_id;
     }
 
-    // Get all categories (no limit, no offset)
-    const categories = await Category.findAll({
+    // Get categories with count and include subcategories
+    const { count, rows: categories } = await Category.findAndCountAll({
       where: whereClause,
       order: [
         ["sort_order", "ASC"],
@@ -92,27 +92,35 @@ exports.getCategories = async (req, res) => {
           model: require("../models/SubCategory"),
           as: "subCategories",
           attributes: [
-            /* ... */
+            "id",
+            "name",
+            "slug",
+            "priority",
+            "is_active",
+            "meta_title",
+            "meta_description",
+            "meta_keywords",
+            "createdAt",
+            "updatedAt",
           ],
           where: { is_active: true },
           required: false,
         },
       ],
-      
     });
-
-
 
     // Format categories and rename subCategories to subcategories
     const formattedCategories = categories.map((category) => {
       const categoryData = category.toJSON();
 
       // Format main category image
-      if (categoryData.image && !categoryData.image.startsWith("http")) {
-        categoryData.image = config.getImageUrl(categoryData.image);
+      if (categoryData.image) {
+        if (!categoryData.image.startsWith("http")) {
+          categoryData.image = config.getImageUrl(categoryData.image);
+        }
       }
 
-      // Rename subCategories to subcategories
+      // Rename subCategories to subcategories and format the data
       if (categoryData.subCategories) {
         categoryData.subcategories = categoryData.subCategories.map(
           (subCat) => ({
@@ -128,6 +136,7 @@ exports.getCategories = async (req, res) => {
             updatedAt: subCat.updatedAt,
           })
         );
+        // Remove the original subCategories field
         delete categoryData.subCategories;
       } else {
         categoryData.subcategories = [];
@@ -136,7 +145,7 @@ exports.getCategories = async (req, res) => {
       return categoryData;
     });
 
-    // Get all categories for parent selection
+    // Get all categories for parent selection (excluding current category if editing)
     const allCategories = await Category.findAll({
       where: { is_active: true },
       attributes: ["id", "name", "level"],
@@ -148,6 +157,12 @@ exports.getCategories = async (req, res) => {
       data: {
         categories: formattedCategories,
         allCategories,
+        pagination: {
+          currentPage: parseInt(page),
+          
+          totalItems: count,
+          
+        },
       },
     });
   } catch (error) {
@@ -160,40 +175,39 @@ exports.getCategories = async (req, res) => {
   }
 };
 
-
 // Get single category by ID
 exports.getCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const category = await Category.findByPk(id);
-    
+
     if (!category) {
       return res.status(404).json({
         success: false,
-        message: 'Category not found'
+        message: "Category not found",
       });
     }
-    
+
     // Format image URL
     const categoryData = category.toJSON();
     if (categoryData.image) {
       // Only format if it's a relative path, not already a full URL
-      if (!categoryData.image.startsWith('http')) {
+      if (!categoryData.image.startsWith("http")) {
         categoryData.image = config.getImageUrl(categoryData.image);
       }
     }
-    
+
     res.json({
       success: true,
-      data: categoryData
+      data: categoryData,
     });
   } catch (error) {
-    console.error('Get category error:', error);
+    console.error("Get category error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch category',
-      error: error.message
+      message: "Failed to fetch category",
+      error: error.message,
     });
   }
 };
@@ -201,9 +215,9 @@ exports.getCategory = async (req, res) => {
 // Create new category
 exports.createCategory = async (req, res) => {
   try {
-    console.log('Received body:', req.body);
-    console.log('Received files:', req.files);
-    
+    console.log("Received body:", req.body);
+    console.log("Received files:", req.files);
+
     const {
       name,
       description,
@@ -212,34 +226,35 @@ exports.createCategory = async (req, res) => {
       parent_id = null,
       metaTitle,
       metaDescription,
-      metaKeywords
+      metaKeywords,
     } = req.body;
-    
+
     // Convert string values to proper types
     const priorityInt = parseInt(priority) || 0;
-    const isActiveBool = isActive === 'true' || isActive === true;
-    const parent_idInt = parent_id && parent_id !== '' ? parseInt(parent_id) : null;
-    
+    const isActiveBool = isActive === "true" || isActive === true;
+    const parent_idInt =
+      parent_id && parent_id !== "" ? parseInt(parent_id) : null;
+
     // Validate required fields
     if (!name) {
       return res.status(400).json({
         success: false,
-        message: 'Category name is required'
+        message: "Category name is required",
       });
     }
-    
+
     // Generate slug
     const slug = generateSlug(name);
-    
+
     // Check if slug already exists
     const existingCategory = await Category.findOne({ where: { slug } });
     if (existingCategory) {
       return res.status(400).json({
         success: false,
-        message: 'Category with this name already exists'
+        message: "Category with this name already exists",
       });
     }
-    
+
     // Determine level
     let level = 1;
     if (parent_idInt) {
@@ -249,19 +264,19 @@ exports.createCategory = async (req, res) => {
         if (level > 3) {
           return res.status(400).json({
             success: false,
-            message: 'Maximum category level is 3'
+            message: "Maximum category level is 3",
           });
         }
       }
     }
-    
+
     // Handle file uploads
     let image = null;
-    
+
     if (req.files && req.files.logo) {
       image = await handleFileUpload(req.files.logo[0]);
     }
-    
+
     // Create category
     const category = await Category.create({
       name,
@@ -274,31 +289,31 @@ exports.createCategory = async (req, res) => {
       is_active: isActiveBool,
       meta_title: metaTitle || null,
       meta_description: metaDescription || null,
-      meta_keywords: metaKeywords || null
+      meta_keywords: metaKeywords || null,
     });
-    
+
     // Sync to live server (optional - can be disabled)
-    if (process.env.SYNC_TO_LIVE === 'true') {
+    if (process.env.SYNC_TO_LIVE === "true") {
       try {
         await liveServerSync.syncCategory(category.toJSON());
-        console.log('✅ Category synced to live server');
+        console.log("✅ Category synced to live server");
       } catch (error) {
-        console.log('⚠️ Category sync to live server failed:', error.message);
+        console.log("⚠️ Category sync to live server failed:", error.message);
         // Don't fail the request if live sync fails
       }
     }
-    
+
     res.status(201).json({
       success: true,
-      message: 'Category created successfully',
-      data: category
+      message: "Category created successfully",
+      data: category,
     });
   } catch (error) {
-    console.error('Create category error:', error);
+    console.error("Create category error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to create category',
-      error: error.message
+      message: "Failed to create category",
+      error: error.message,
     });
   }
 };
@@ -315,72 +330,72 @@ exports.updateCategory = async (req, res) => {
       parent_id,
       metaTitle,
       metaDescription,
-      metaKeywords
+      metaKeywords,
     } = req.body;
-    
+
     // Find category
     const category = await Category.findByPk(id);
     if (!category) {
       return res.status(404).json({
         success: false,
-        message: 'Category not found'
+        message: "Category not found",
       });
     }
-    
+
     // Validate parent category (prevent circular reference)
     if (parent_id && parent_id !== category.parent_id) {
       if (parseInt(parent_id) === parseInt(id)) {
         return res.status(400).json({
           success: false,
-          message: 'Category cannot be its own parent'
+          message: "Category cannot be its own parent",
         });
       }
-      
+
       // Check if new parent is a child of current category
       const isChild = await checkIfChildCategory(id, parent_id);
       if (isChild) {
         return res.status(400).json({
           success: false,
-          message: 'Cannot set child category as parent'
+          message: "Cannot set child category as parent",
         });
       }
     }
-    
+
     // Generate new slug if name changed
     let slug = category.slug;
     if (name && name !== category.name) {
       slug = generateSlug(name);
-      
+
       // Check if new slug exists
-      const existingCategory = await Category.findOne({ 
-        where: { slug, id: { [Op.ne]: id } } 
+      const existingCategory = await Category.findOne({
+        where: { slug, id: { [Op.ne]: id } },
       });
       if (existingCategory) {
         return res.status(400).json({
           success: false,
-          message: 'Category with this name already exists'
+          message: "Category with this name already exists",
         });
       }
     }
-    
+
     // Handle file uploads for update
     let image = category.image; // Keep existing image by default
-    
+
     if (req.files && req.files.logo) {
       // Delete old image if exists
       if (category.image) {
         try {
-          const oldImagePath = path.join(__dirname, '..', '..', category.image);
+          const oldImagePath = path.join(__dirname, "..", "..", category.image);
           await fs.unlink(oldImagePath);
         } catch (error) {
-          console.log('Old image not found or already deleted');
+          console.log("Old image not found or already deleted");
         }
       }
-      
+
       // Upload new image
       image = await handleFileUpload(req.files.logo[0]);
     }
-    
+
     // Determine new level
     let level = category.level;
     if (parent_id !== category.parent_id) {
@@ -390,52 +405,63 @@ exports.updateCategory = async (req, res) => {
       } else {
         level = 1;
       }
-      
+
       if (level > 3) {
         return res.status(400).json({
           success: false,
-          message: 'Maximum category level is 3'
+          message: "Maximum category level is 3",
         });
       }
     }
-    
+
     // Update category
     await category.update({
       name: name || category.name,
-      description: description !== undefined ? description : category.description,
+      description:
+        description !== undefined ? description : category.description,
       slug,
       image,
-      sort_order: priority !== undefined ? parseInt(priority) : category.sort_order,
-      is_active: isActive !== undefined ? Boolean(isActive) : category.is_active,
-      parent_id: parent_id !== undefined ? (parent_id || null) : category.parent_id,
+      sort_order:
+        priority !== undefined ? parseInt(priority) : category.sort_order,
+      is_active:
+        isActive !== undefined ? Boolean(isActive) : category.is_active,
+      parent_id:
+        parent_id !== undefined ? parent_id || null : category.parent_id,
       level,
       meta_title: metaTitle !== undefined ? metaTitle : category.meta_title,
-      meta_description: metaDescription !== undefined ? metaDescription : category.meta_description,
-      meta_keywords: metaKeywords !== undefined ? metaKeywords : category.meta_keywords
+      meta_description:
+        metaDescription !== undefined
+          ? metaDescription
+          : category.meta_description,
+      meta_keywords:
+        metaKeywords !== undefined ? metaKeywords : category.meta_keywords,
     });
-    
+
     // Sync update to live server (optional - can be disabled)
-    if (process.env.SYNC_TO_LIVE === 'true') {
+    if (process.env.SYNC_TO_LIVE === "true") {
       try {
-        await liveServerSync.updateOnLive('categories', id, category.toJSON());
-        console.log('✅ Category update synced to live server');
+        await liveServerSync.updateOnLive("categories", id, category.toJSON());
+        console.log("✅ Category update synced to live server");
       } catch (error) {
-        console.log('⚠️ Category update sync to live server failed:', error.message);
+        console.log(
+          "⚠️ Category update sync to live server failed:",
+          error.message
+        );
         // Don't fail the request if live sync fails
       }
     }
-    
+
     res.json({
       success: true,
-      message: 'Category updated successfully',
-      data: category
+      message: "Category updated successfully",
+      data: category,
     });
   } catch (error) {
-    console.error('Update category error:', error);
+    console.error("Update category error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to update category',
-      error: error.message
+      message: "Failed to update category",
+      error: error.message,
     });
   }
 };
@@ -444,61 +470,64 @@ exports.updateCategory = async (req, res) => {
 exports.deleteCategory = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Find category
     const category = await Category.findByPk(id);
     if (!category) {
       return res.status(404).json({
         success: false,
-        message: 'Category not found'
+        message: "Category not found",
       });
     }
-    
+
     // Check if category has children
     const childCount = await Category.count({ where: { parent_id: id } });
     if (childCount > 0) {
       return res.status(400).json({
         success: false,
-        message: 'Cannot delete category with subcategories'
+        message: "Cannot delete category with subcategories",
       });
     }
-    
+
     // Check if category has products
     // Note: You'll need to implement this check when you have Product model
-    
+
     // Delete associated files
     if (category.image) {
       try {
-        await fs.unlink(path.join(__dirname, '..', '..', category.image));
+        await fs.unlink(path.join(__dirname, "..", "..", category.image));
       } catch (error) {
-        console.error('Error deleting logo:', error);
+        console.error("Error deleting logo:", error);
       }
     }
-    
+
     // Delete category
     await category.destroy();
-    
+
     // Sync deletion to live server (optional - can be disabled)
-    if (process.env.SYNC_TO_LIVE === 'true') {
+    if (process.env.SYNC_TO_LIVE === "true") {
       try {
-        await liveServerSync.deleteFromLive('categories', id);
-        console.log('✅ Category deletion synced to live server');
+        await liveServerSync.deleteFromLive("categories", id);
+        console.log("✅ Category deletion synced to live server");
       } catch (error) {
-        console.log('⚠️ Category deletion sync to live server failed:', error.message);
+        console.log(
+          "⚠️ Category deletion sync to live server failed:",
+          error.message
+        );
         // Don't fail the request if live sync fails
       }
     }
-    
+
     res.json({
       success: true,
-      message: 'Category deleted successfully'
+      message: "Category deleted successfully",
     });
   } catch (error) {
-    console.error('Delete category error:', error);
+    console.error("Delete category error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to delete category',
-      error: error.message
+      message: "Failed to delete category",
+      error: error.message,
     });
   }
 };
@@ -509,7 +538,7 @@ exports.toggleCategoryStatus = async (req, res) => {
     const { id } = req.params;
     const { field } = req.body; // 'isActive' or 'isHomeCategory'
 
-    if (!["is_active", "isHomeCategory"].includes(field)) {
+    if (!["isActive", "isHomeCategory"].includes(field)) {
       return res.status(400).json({
         success: false,
         message: "Invalid field to toggle",
@@ -542,51 +571,49 @@ exports.toggleCategoryStatus = async (req, res) => {
   }
 };
 
-
-
-
-
-
 // Export categories
 exports.exportCategories = async (req, res) => {
   try {
     const categories = await Category.findAll({
-      order: [['priority', 'ASC'], ['createdAt', 'DESC']],
+      order: [
+        ["priority", "ASC"],
+        ["createdAt", "DESC"],
+      ],
       include: [
         {
           model: Category,
-          as: 'parent',
-          attributes: ['name']
-        }
-      ]
+          as: "parent",
+          attributes: ["name"],
+        },
+      ],
     });
-    
+
     // Format data for export
-    const exportData = categories.map(cat => ({
+    const exportData = categories.map((cat) => ({
       ID: cat.id,
       Name: cat.name,
-      'Arabic Name': cat.nameAr || '',
-      'Bangla Name': cat.nameBn || '',
-      'Hindi Name': cat.nameHi || '',
+      "Arabic Name": cat.nameAr || "",
+      "Bangla Name": cat.nameBn || "",
+      "Hindi Name": cat.nameHi || "",
       Slug: cat.slug,
       Priority: cat.priority,
-      'Home Category': cat.isHomeCategory ? 'Yes' : 'No',
-      Status: cat.isActive ? 'Active' : 'Inactive',
+      "Home Category": cat.isHomeCategory ? "Yes" : "No",
+      Status: cat.isActive ? "Active" : "Inactive",
       Level: cat.level,
-      'Parent Category': cat.parent?.name || 'None',
-      'Created At': cat.createdAt.toISOString().split('T')[0]
+      "Parent Category": cat.parent?.name || "None",
+      "Created At": cat.createdAt.toISOString().split("T")[0],
     }));
-    
+
     res.json({
       success: true,
-      data: exportData
+      data: exportData,
     });
   } catch (error) {
-    console.error('Export categories error:', error);
+    console.error("Export categories error:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to export categories',
-      error: error.message
+      message: "Failed to export categories",
+      error: error.message,
     });
   }
 };
@@ -594,19 +621,19 @@ exports.exportCategories = async (req, res) => {
 // Helper function to check if a category is a child of another
 async function checkIfChildCategory(parent_id, childId) {
   const children = await Category.findAll({
-    where: { parent_id: parseInt(parent_id) }
+    where: { parent_id: parseInt(parent_id) },
   });
-  
+
   for (const child of children) {
     if (child.id === parseInt(childId)) {
       return true;
     }
-    
+
     const isGrandChild = await checkIfChildCategory(child.id, childId);
     if (isGrandChild) {
       return true;
     }
   }
-  
+
   return false;
 }
