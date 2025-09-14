@@ -549,7 +549,7 @@ exports.toggleCategoryStatus = async (req, res) => {
     const { id } = req.params;
     const { field } = req.body; // 'isActive' or 'isHomeCategory'
 
-    if (!["isActive", "isHomeCategory"].includes(field)) {
+    if (!["is_active", "isHomeCategory"].includes(field)) {
       return res.status(400).json({
         success: false,
         message: "Invalid field to toggle",
