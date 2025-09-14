@@ -24,6 +24,18 @@ const upload = multer({
 // router.use(authenticate);
 
 // Get all categories (with pagination and search)
+router.patch(
+  "/:id/toggle",
+  (req, res, next) => {
+    console.log("Categories route hit"); // ✅ check if route is reached
+    console.log("Body received:", req.body); // ✅ check request body
+    next();
+  },
+  categoryController.toggleCategoryStatus
+);
+
+router.get("/export/all", categoryController.exportCategories);
+
 router.get('/', categoryController.getCategories);
 
 // Get single category by ID
@@ -51,9 +63,9 @@ router.put('/:id',
 router.delete('/:id', categoryController.deleteCategory);
 
 // Toggle category status (active/inactive, home category)
-router.patch('/:id/toggle', categoryController.toggleCategoryStatus);
+
+
 
 // Export categories
-router.get('/export/all', categoryController.exportCategories);
 
 module.exports = router;
