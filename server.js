@@ -49,7 +49,7 @@ app.use(helmet({
 app.use(cors({
   origin: config.ALLOWED_ORIGINS,
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS","PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-API-Key"]
 }));
 
@@ -115,9 +115,11 @@ app.use('/api/products', productRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/stores', storeRoutes);
 app.use('/api/admin', bulkImportRoutes);
-app.use('/api/orders', orderRoutes);
+
+app.use('/api/orders', orderRoutes); // Order routes are added here
 app.use('/api/categories', categoryRoutes);
-app.use('/api/category-hierarchy', categoryHierarchyRoutes);
+app.use('/api/category-hierarchy', categoryHierarchyRoutes); 
+
 
 // Health check
 app.get('/health', (req, res) => {
