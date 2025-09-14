@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
-const { Admin } = require("../models"); // Use the Admin model from the central index
-const { generateCaptcha } = require("../utils/captcha");
+const { sequelize } = require("../models");
+const Admin = require("../models/Admin")(sequelize);
+const { generateCaptcha, validateCaptcha } = require("../utils/captcha");
 
 // Store captcha sessions (in production, use Redis)
 const captchaSessions = new Map();
