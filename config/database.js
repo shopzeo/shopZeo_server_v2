@@ -28,13 +28,13 @@ const sequelize = new Sequelize(
 const testConnection = async () => {
   try {
     await sequelize.authenticate();
-    console.log('✅ Database connection established successfully.');
+    console.log(' Database connection established successfully.');
     
     // Don't sync models automatically - tables already exist
-    console.log('✅ Database connection ready.');
+    console.log(' Database connection ready.');
     
   } catch (error) {
-    console.error('❌ Unable to connect to the database:', error);
+    console.error(' Unable to connect to the database:', error);
   }
 };
 

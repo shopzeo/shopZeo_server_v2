@@ -1,123 +1,88 @@
-const { DataTypes } = require('sequelize');
+const { DataTypes, Sequelize } = require('sequelize');
 const { sequelize } = require('../config/database');
 
 const OrderItem = sequelize.define('OrderItem', {
+  // THE FIX: Changed 'id' to a CHAR(36) to match your database schema.
   id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
+    type: DataTypes.CHAR(36),
+    defaultValue: Sequelize.UUIDV4,
+    primaryKey: true
   },
+  // THE FIX: Added the 'field' property to map camelCase model names to snake_case database columns.
   orderId: {
     type: DataTypes.CHAR(36),
     allowNull: false,
+    field: 'order_id',
     references: {
-      model: 'orders',
+      model: 'orders', // Should be the table name as a string
       key: 'id'
     }
   },
   productId: {
     type: DataTypes.CHAR(36),
     allowNull: false,
+    field: 'product_id',
     references: {
-      model: 'products',
-      key: 'id'
-    }
-  },
-  variantId: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'product_variants',
+      model: 'products', // Should be the table name as a string
       key: 'id'
     }
   },
   storeId: {
     type: DataTypes.CHAR(36),
     allowNull: false,
+    field: 'store_id',
     references: {
-      model: 'stores',
+      model: 'stores', // Should be the table name as a string
       key: 'id'
     }
   },
   productName: {
     type: DataTypes.STRING(255),
-    allowNull: false
-  },
-  productSku: {
-    type: DataTypes.STRING(100),
-    allowNull: false
+    allowNull: false,
+    field: 'product_name'
   },
   quantity: {
     type: DataTypes.INTEGER,
-    allowNull: false,
-    defaultValue: 1
+    allowNull: false
   },
   unitPrice: {
     type: DataTypes.DECIMAL(10, 2),
-    allowNull: false
+    allowNull: false,
+    field: 'unit_price'
   },
   totalPrice: {
     type: DataTypes.DECIMAL(10, 2),
-    allowNull: false
-  },
-  discountAmount: {
-    type: DataTypes.DECIMAL(10, 2),
     allowNull: false,
-    defaultValue: 0.00
+    field: 'total_price'
   },
-  taxAmount: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false,
-    defaultValue: 0.00
-  },
-  finalPrice: {
-    type: DataTypes.DECIMAL(10, 2),
-    allowNull: false
-  },
-  weight: {
-    type: DataTypes.DECIMAL(8, 3),
-    allowNull: true,
-    defaultValue: 0.000
-  },
-  attributes: {
-    type: DataTypes.JSON,
-    allowNull: true,
-    comment: 'JSON object with selected attributes and values'
-  },
-  notes: {
-    type: DataTypes.TEXT,
-    allowNull: true
-  },
-  isReturned: {
-    type: DataTypes.BOOLEAN,
-    allowNull: false,
-    defaultValue: false
-  },
-  returnReason: {
-    type: DataTypes.STRING(255),
-    allowNull: true
-  },
-  returnDate: {
+  // THE FIX: Removed fields that do not exist in your `order_items` table:
+  // - variantId
+  // - productSku
+  // - discountAmount
+  // - taxAmount
+  // - finalPrice
+  // - weight
+  // - attributes
+  // - notes
+  // - isReturned
+  // - returnReason
+  // - returnDate
+  createdAt: {
     type: DataTypes.DATE,
-    allowNull: true
+    field: 'created_at'
+  },
+  updatedAt: {
+    type: DataTypes.DATE,
+    field: 'updated_at'
   }
 }, {
   tableName: 'order_items',
   timestamps: true,
-  hooks: {
-    beforeCreate: (item) => {
-      // Calculate total price
-      item.totalPrice = item.unitPrice * item.quantity;
-      // Calculate final price after discount and tax
-      item.finalPrice = item.totalPrice - item.discountAmount + item.taxAmount;
-    },
-    beforeUpdate: (item) => {
-      if (item.changed('unitPrice') || item.changed('quantity')) {
-        item.totalPrice = item.unitPrice * item.quantity;
-        item.finalPrice = item.totalPrice - item.discountAmount + item.taxAmount;
-      }
-    }
-  }
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
+  // THE FIX: Removed hooks that were trying to calculate fields that do not exist in the database.
+  // This calculation is now correctly handled in the `orderService.js` before saving.
+  hooks: {}
 });
 
 module.exports = OrderItem;
