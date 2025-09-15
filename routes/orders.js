@@ -1,23 +1,23 @@
 const express = require('express');
 const router = express.Router();
 const OrderService = require('../services/orderService');
-const { Order, OrderItem, Product } = require('../models/associations');
 const { authenticateToken } = require('../middleware/userAuth.js');
 
-// Protect all routes in this file
+// इस फाइल के सभी रूट्स को सुरक्षित करें
 router.use(authenticateToken);
 
-// Create new order(s)
+// --- एक नया ऑर्डर बनाएँ (यह अब केवल COD ऑर्डर बनाएगा) ---
 router.post('/', async (req, res) => {
   try {
-    const createdOrders = await OrderService.createOrder(req.body, req.user.id);
+    // अब यह सर्विस केवल COD या पेमेंट-पेंडिंग ऑर्डर बनाएगी
+    const createdOrders = await OrderService.createOrder(req.body, req.user);
     res.status(201).json({
       success: true,
       message: `${createdOrders.length} order(s) have been successfully placed.`,
       data: createdOrders,
     });
   } catch (error) {
-    console.error(" Order Creation Failed!", error);
+    console.error("Order Creation Failed!", error);
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message || 'An internal server error occurred.',
@@ -25,22 +25,46 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Get all orders for the logged-in user
+// --- लॉग-इन यूज़र के सभी ऑर्डर्स प्राप्त करें ---
 router.get('/', async (req, res) => {
   try {
-    const orders = await Order.findAll({
-      where: { customerId: req.user.id }, // Using camelCase to match model
-      include: [{
-        model: OrderItem,
-        as: 'items', // Make sure this alias is defined in your Order model association
-        include: [Product]
-      }],
-      order: [['createdAt', 'DESC']],
-    });
-    res.json({ success: true, count: orders.length, data: orders });
+    const orders = await OrderService.getMyOrders(req.user);
+    res.status(200).json({ success: true, count: orders.length, data: orders });
   } catch (error) {
     console.error("Fetching Orders Failed!", error);
-    res.status(500).json({ success: false, message: 'Internal server error' });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'An internal server error occurred.',
+    });
+  }
+});
+
+// --- ID से एक ऑर्डर प्राप्त करें ---
+router.get('/:id', async (req, res) => {
+    try {
+      const orderId = req.params.id;
+      const order = await OrderService.getOrderById(orderId, req.user);
+      res.status(200).json({ success: true, data: order });
+    } catch (error) {
+      console.error(`Fetching Order ${req.params.id} Failed!`, error);
+      res.status(error.statusCode || 500).json({
+        success: false,
+        message: error.message || 'An internal server error occurred.',
+      });
+    }
+});
+
+// --- एक ऑर्डर कैंसिल करें ---
+router.patch('/:id/cancel', async (req, res) => {
+  try {
+    const orderId = req.params.id;
+    const result = await OrderService.cancelOrder(orderId, req.user);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message || 'Failed to cancel the order.',
+    });
   }
 });
 
