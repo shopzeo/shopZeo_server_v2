@@ -123,7 +123,7 @@ app.get('/health', (req, res) => {
   });
 });
 
-// --- एरर हैंडलिंग ---
+
 app.use('*', (req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });

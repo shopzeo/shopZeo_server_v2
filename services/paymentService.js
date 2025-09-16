@@ -1,106 +1,88 @@
+const db = require('../models');
+const { AppError } = require('../middleware/errorHandler');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
-const { v4: uuidv4 } = require('uuid');
-const db = require('../models'); // Sequelize models
-const { AppError } = require('../middleware/errorHandler'); // Correct path to error handler
-
-// Razorpay Instance को इनिशियलाइज़ करें
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
 
 class PaymentService {
+
     /**
-     * Creates a Razorpay order.
-     * @param {number} totalAmount - The total amount in INR.
+     * Creates a Razorpay order to initiate a payment transaction.
+     * This is called by the frontend to get an order_id for the checkout popup.
      */
-    async createRazorpayOrder(totalAmount) {
+    async createRazorpayOrder(orderId, user) {
         try {
+            const order = await db.Order.findOne({ where: { id: orderId, customerId: user.id } });
+            if (!order) throw new AppError("Order not found.", 404);
+            if (order.paymentStatus === 'paid') throw new AppError("This order has already been paid.", 400);
+
+            const instance = new Razorpay({
+                key_id: process.env.RAZORPAY_KEY_ID,
+                key_secret: process.env.RAZORPAY_KEY_SECRET,
+            });
+
             const options = {
-                amount: Math.round(totalAmount * 100), // राशि पैसे में
+                amount: Math.round(order.totalAmount * 100), // Amount in the smallest currency unit (paise)
                 currency: "INR",
-                receipt: `receipt_order_${uuidv4()}`,
+                receipt: order.id, // Your internal database order ID
             };
-            const razorpayOrder = await razorpay.orders.create(options);
-            return razorpayOrder;
+
+            const razorpayOrder = await instance.orders.create(options);
+            if (!razorpayOrder) throw new AppError("Could not create Razorpay order.", 500);
+
+            // Return the necessary details for the frontend to open the checkout
+            return {
+                success: true,
+                orderId: razorpayOrder.id,
+                amount: razorpayOrder.amount,
+                currency: razorpayOrder.currency,
+                key: process.env.RAZORPAY_KEY_ID // The public key for the frontend
+            };
         } catch (error) {
-            console.error('Razorpay Order Creation Service Error:', error);
-            throw new AppError('Failed to create Razorpay order.', 500);
+            console.error("Create Razorpay Order Service Error:", error);
+            if (error instanceof AppError) throw error;
+            throw new AppError("Failed to initiate payment.", 500);
         }
     }
 
     /**
-     * Verifies the Razorpay payment and creates the order in the database.
-     * @param {object} verificationData - Data from the frontend.
-     * @param {object} user - The authenticated user.
+     * Verifies the payment signature from Razorpay to confirm payment success.
+     * This is a crucial security step.
      */
-    async verifyAndCreateOrder(verificationData, user) {
+    async verifyRazorpayPayment(paymentData) {
         const t = await db.sequelize.transaction();
         try {
-            const {
-                razorpay_order_id,
-                razorpay_payment_id,
-                razorpay_signature,
-                cartItems,
-                shippingAddress,
-                billingAddress,
-                totalAmount
-            } = verificationData;
-
-            const body = razorpay_order_id + "|" + razorpay_payment_id;
+            const { razorpay_order_id, razorpay_payment_id, razorpay_signature, dbOrderId } = paymentData;
+            
+            // The body for HMAC should be order_id + "|" + razorpay_payment_id
+            const body = `${razorpay_order_id}|${razorpay_payment_id}`;
             const expectedSignature = crypto
                 .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
                 .update(body.toString())
                 .digest("hex");
-
-            if (expectedSignature !== razorpay_signature) {
+            
+            if (expectedSignature === razorpay_signature) {
+                // Signature is valid, now update the order in your database
+                const order = await db.Order.findByPk(dbOrderId, { transaction: t });
+                if (!order) throw new AppError("Order not found in our database.", 404);
+                
+                await order.update({
+                    paymentStatus: 'paid',
+                    status: 'confirmed', // Update status to confirmed
+                    transactionId: razorpay_payment_id,
+                    paymentGateway: 'Razorpay'
+                }, { transaction: t });
+                
+                await t.commit();
+                return { success: true, message: "Payment successful and verified." };
+            } else {
                 throw new AppError("Payment verification failed. Signature mismatch.", 400);
             }
-
-            // पेमेंट सफल है, अब डेटाबेस में ऑर्डर बनाएँ
-            const store_id = cartItems[0].store.id;
-
-            const order = await db.Order.create({
-                id: uuidv4(),
-                customerId: user.id,
-                storeId: store_id,
-                shippingAddress: JSON.stringify(shippingAddress),
-                billingAddress: JSON.stringify(billingAddress),
-                totalAmount: totalAmount,
-                paymentMethod: 'razorpay',
-                paymentStatus: 'paid',
-                transactionId: razorpay_payment_id,
-                status: 'confirmed',
-            }, { transaction: t });
-
-            for (const item of cartItems) {
-                await db.OrderItem.create({
-                    orderId: order.id,
-                    productId: item.id,
-                    quantity: item.quantity,
-                    unitPrice: item.price,
-                    totalPrice: item.price * item.quantity,
-                    productName: item.name,
-                    storeId: store_id
-                }, { transaction: t });
-            }
-
-            await t.commit();
-            return { success: true, message: "Order placed successfully!", orderId: order.id };
-
         } catch (error) {
             await t.rollback();
+            console.error("Verify Razorpay Payment Service Error:", error);
             if (error instanceof AppError) throw error;
-            throw new AppError("Failed to verify payment and create order.", 500);
+            throw new AppError("Failed to verify payment.", 500);
         }
-    }
-
-    /**
-     * Returns the Razorpay Key ID.
-     */
-    getRazorpayKey() {
-        return { key: process.env.RAZORPAY_KEY_ID };
     }
 }
 
