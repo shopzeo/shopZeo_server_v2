@@ -3,13 +3,12 @@ const router = express.Router();
 const OrderService = require('../services/orderService');
 const { authenticateToken } = require('../middleware/userAuth.js');
 
-// इस फाइल के सभी रूट्स को सुरक्षित करें
+
 router.use(authenticateToken);
 
-// --- एक नया ऑर्डर बनाएँ (यह अब केवल COD ऑर्डर बनाएगा) ---
 router.post('/', async (req, res) => {
   try {
-    // अब यह सर्विस केवल COD या पेमेंट-पेंडिंग ऑर्डर बनाएगी
+    
     const createdOrders = await OrderService.createOrder(req.body, req.user);
     res.status(201).json({
       success: true,
@@ -25,7 +24,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// --- लॉग-इन यूज़र के सभी ऑर्डर्स प्राप्त करें ---
+
 router.get('/', async (req, res) => {
   try {
     const orders = await OrderService.getMyOrders(req.user);
@@ -39,7 +38,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// --- ID से एक ऑर्डर प्राप्त करें ---
+
 router.get('/:id', async (req, res) => {
     try {
       const orderId = req.params.id;
@@ -54,7 +53,7 @@ router.get('/:id', async (req, res) => {
     }
 });
 
-// --- एक ऑर्डर कैंसिल करें ---
+
 router.patch('/:id/cancel', async (req, res) => {
   try {
     const orderId = req.params.id;
