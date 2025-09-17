@@ -1,5 +1,5 @@
 const PaymentService = require('../services/paymentService');
-const OrderService = require('../services/orderService'); // We need this to get order details
+const { AppError } = require('../middleware/errorHandler');
 
 // A simple helper function to catch errors in async functions
 const catchAsync = fn => {
@@ -20,7 +20,14 @@ const catchAsync = fn => {
  */
 exports.createRazorpayOrder = catchAsync(async (req, res, next) => {
     const { orderId } = req.params; // The ID of the order already created in your DB
+    
+    if (!orderId) {
+      return next(new AppError('Order ID is required to create a Razorpay order', 400));
+    }
+
+    // Call the service function to handle the business logic
     const razorpayOrderDetails = await PaymentService.createRazorpayOrder(orderId, req.user);
+    
     res.status(200).json(razorpayOrderDetails);
 });
 
@@ -31,6 +38,7 @@ exports.createRazorpayOrder = catchAsync(async (req, res, next) => {
 exports.verifyRazorpayPayment = catchAsync(async (req, res, next) => {
     // The frontend must send the original database order ID along with payment details
     const result = await PaymentService.verifyRazorpayPayment(req.body);
+    
     res.status(200).json(result);
 });
 
@@ -39,5 +47,15 @@ exports.verifyRazorpayPayment = catchAsync(async (req, res, next) => {
  * Endpoint for the frontend to get the public Razorpay Key ID.
  */
 exports.getRazorpayKey = (req, res) => {
-    res.status(200).json({ key: process.env.RAZORPAY_KEY_ID });
+    // Make sure to fetch the key from the environment variables securely
+    const razorpayKey = process.env.RAZORPAY_KEY_ID;
+    
+    if (!razorpayKey) {
+        return res.status(500).json({
+            success: false,
+            message: 'Razorpay key is not configured on the server'
+        });
+    }
+
+    res.status(200).json({ key: razorpayKey });
 };
