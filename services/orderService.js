@@ -1,17 +1,17 @@
-const { Op, Transaction } = require('sequelize');
-const { 
-  Order, 
-  OrderItem, 
-  Product, 
-  Store, 
-  User, 
-  Address, 
-  Wallet, 
+const { Op, Transaction } = require("sequelize");
+const {
+  Order,
+  OrderItem,
+  Product,
+  Store,
+  User,
+  Address,
+  Wallet,
   Transaction: WalletTransaction,
-  Stock
-} = require('../models/associations');
-const { AppError } = require('../middleware/errorHandler');
-
+  Stock,
+} = require("../models");
+const { AppError } = require("../middleware/errorHandler");
+const { v4: uuidv4 } = require("uuid");
 class OrderService {
   // Create new order
   async createOrder(orderData, userId, transaction = null) {
@@ -22,23 +22,23 @@ class OrderService {
         shippingAddressId,
         paymentMethod,
         notes,
-        couponCode
+        couponCode,
       } = orderData;
 
       if (!items || items.length === 0) {
-        throw new AppError('Order must contain at least one item', 400);
+        throw new AppError("Order must contain at least one item", 400);
       }
 
       // Validate addresses
       const billingAddress = await Address.findByPk(billingAddressId);
       const shippingAddress = await Address.findByPk(shippingAddressId);
-      
+
       if (!billingAddress || billingAddress.userId !== userId) {
-        throw new AppError('Invalid billing address', 400);
+        throw new AppError("Invalid billing address", 400);
       }
-      
+
       if (!shippingAddress || shippingAddress.userId !== userId) {
-        throw new AppError('Invalid shipping address', 400);
+        throw new AppError("Invalid shipping address", 400);
       }
 
       // Process items and calculate totals
@@ -50,10 +50,9 @@ class OrderService {
 
       for (const item of items) {
         const product = await Product.findByPk(item.productId, {
-          include: [{ model: Store, as: 'store' }]
+          include: [{ model: Store, as: "store" }],
         });
-
-        if (!product || !product.isActive || !product.isApproved) {
+        if (!product || !product.is_active) {
           throw new AppError(`Product ${item.productId} is not available`, 400);
         }
 
@@ -61,12 +60,15 @@ class OrderService {
         const stock = await Stock.findOne({
           where: {
             productId: item.productId,
-            storeId: product.storeId
-          }
+            storeId: product.store_id,
+          },
         });
-
-        if (!stock || stock.availableQuantity < item.quantity) {
-          throw new AppError(`Insufficient stock for product ${product.name}`, 400);
+        console.log("Stock Info:", product);
+        if (!stock || stock.available_quantity < item.quantity) {
+          throw new AppError(
+            `Insufficient stock for product ${product.name}`,
+            400
+          );
         }
 
         // Calculate item totals
@@ -85,7 +87,7 @@ class OrderService {
           unitPrice: product.price,
           subtotal: itemSubtotal,
           tax: itemTax,
-          shipping: itemShipping
+          shipping: itemShipping,
         });
       }
 
@@ -97,47 +99,71 @@ class OrderService {
       const total = subtotal + totalTax + totalShipping - totalDiscount;
 
       // Create order
-      const order = await Order.create({
-        orderNumber: this.generateOrderNumber(),
-        customerId: userId,
-        billingAddressId,
-        shippingAddressId,
-        paymentMethod,
-        subtotal,
-        taxAmount: totalTax,
-        shippingAmount: totalShipping,
-        discountAmount: totalDiscount,
-        totalAmount: total,
-        status: 'pending',
-        notes,
-        createdAt: new Date()
-      }, { transaction });
+      const storeId = processedItems[0].product.store_id;
+
+      const order = await Order.create(
+        {
+          orderNumber: this.generateOrderNumber(),
+          customerId: userId,
+          billingAddressId,
+          shippingAddressId,
+          shippingAddress,
+          paymentMethod,
+          subtotal,
+          storeId,
+          taxAmount: totalTax,
+          shippingAmount: totalShipping,
+          discountAmount: totalDiscount,
+          totalAmount: total,
+          status: "pending",
+          notes,
+          createdAt: new Date(),
+        },
+        { transaction }
+      );
 
       // Create order items and update stock
       for (const item of processedItems) {
-        await OrderItem.create({
-          orderId: order.id,
-          productId: item.product.id,
-          storeId: item.product.storeId,
-          productName: item.product.name,
-          productSku: item.product.sku,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalPrice: item.subtotal,
-          taxAmount: item.tax,
-          finalPrice: item.subtotal + item.tax
-        }, { transaction });
+        // At the top of your file
+
+        await OrderItem.create(
+          {
+            id: uuidv4(), // <-- Add this line
+            orderId: order.id,
+            productId: item.product.id,
+            storeId: item.product.store_id,
+            productName: item.product.name,
+            productSku: item.product.sku_id,
+            quantity: item.quantity,
+            unitPrice: item.product.selling_price,
+            totalPrice: item.subtotal,
+            discountAmount: 0,
+            taxAmount: item.tax,
+            finalPrice: item.subtotal + item.tax,
+            weight: item.product.packaging_weight || 0,
+            isReturned: false,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          },
+          { transaction }
+        );
 
         // Update stock
-        await item.stock.update({
-          quantity: item.stock.quantity - item.quantity,
-          reservedQuantity: item.stock.reservedQuantity + item.quantity
-        }, { transaction });
+        await item.stock.update(
+          {
+            quantity: item.stock.quantity - item.quantity,
+            reservedQuantity: item.stock.reservedQuantity + item.quantity,
+          },
+          { transaction }
+        );
       }
 
       // Update product sold count
       for (const item of processedItems) {
-        await item.product.increment('soldCount', { by: item.quantity, transaction });
+        await item.product.increment("soldCount", {
+          by: item.quantity,
+          transaction,
+        });
       }
 
       return order;
@@ -150,55 +176,63 @@ class OrderService {
   async processPayment(orderId, paymentData, transaction = null) {
     try {
       const order = await Order.findByPk(orderId, {
-        include: [{ model: OrderItem, as: 'items' }]
+        include: [{ model: OrderItem, as: "items" }],
       });
 
       if (!order) {
-        throw new AppError('Order not found', 404);
+        throw new AppError("Order not found", 404);
       }
 
-      if (order.status !== 'pending') {
-        throw new AppError('Order cannot be paid', 400);
+      if (order.status !== "pending") {
+        throw new AppError("Order cannot be paid", 400);
       }
 
       // Process payment based on method
       let paymentResult;
       switch (paymentData.method) {
-        case 'stripe':
+        case "stripe":
           paymentResult = await this.processStripePayment(paymentData, order);
           break;
-        case 'paypal':
+        case "paypal":
           paymentResult = await this.processPayPalPayment(paymentData, order);
           break;
-        case 'razorpay':
+        case "razorpay":
           paymentResult = await this.processRazorpayPayment(paymentData, order);
           break;
-        case 'cod':
+        case "cod":
           paymentResult = { success: true, transactionId: null };
           break;
-        case 'wallet':
+        case "wallet":
           paymentResult = await this.processWalletPayment(order, transaction);
           break;
         default:
-          throw new AppError('Unsupported payment method', 400);
+          throw new AppError("Unsupported payment method", 400);
       }
 
       if (paymentResult.success) {
         // Update order status
-        await order.update({
-          status: 'confirmed',
-          paidAt: new Date(),
-          paymentStatus: 'paid'
-        }, { transaction });
+        await order.update(
+          {
+            status: "confirmed",
+            paidAt: new Date(),
+            paymentStatus: "paid",
+          },
+          { transaction }
+        );
 
         // Create payment record
-        await this.createPaymentRecord(order, paymentData, paymentResult, transaction);
+        await this.createPaymentRecord(
+          order,
+          paymentData,
+          paymentResult,
+          transaction
+        );
 
         // Process vendor payouts
         await this.processVendorPayouts(order, transaction);
 
         // Send notifications
-        await this.sendOrderNotifications(order, 'confirmed');
+        await this.sendOrderNotifications(order, "confirmed");
       }
 
       return paymentResult;
@@ -208,43 +242,76 @@ class OrderService {
   }
 
   // Update order status
-  async updateOrderStatus(orderId, newStatus, userId, notes = null, transaction = null) {
+  async updateOrderStatus(
+    orderId,
+    newStatus,
+    userId,
+    notes = null,
+    transaction = null
+  ) {
     try {
+      // Fetch user and order
+      const user = await User.findByPk(userId);
       const order = await Order.findByPk(orderId, {
-        include: [{ model: OrderItem, as: 'items' }]
+        include: [{ model: OrderItem, as: "items" }],
       });
 
       if (!order) {
-        throw new AppError('Order not found', 404);
+        throw new AppError("Order not found", 404);
       }
 
-      // Validate status transition
-      const validTransitions = this.getValidStatusTransitions(order.status);
-      if (!validTransitions.includes(newStatus)) {
-        throw new AppError(`Invalid status transition from ${order.status} to ${newStatus}`, 400);
+      // Role-based status change logic
+      if (user.role === "admin" || user.role === "store_owner") {
+        // Admin/store owner can change to any valid status
+        const validTransitions = this.getValidStatusTransitions(order.status);
+        if (!validTransitions.includes(newStatus)) {
+          throw new AppError(
+            `Invalid status transition from ${order.status} to ${newStatus}`,
+            400
+          );
+        }
+      } else {
+        // Customer can only cancel their own order
+        if (newStatus !== "cancelled") {
+          throw new AppError(
+            "You are not authorized to change order status.",
+            403
+          );
+        }
+        // Optionally, only allow cancellation if order is pending or confirmed
+        if (!["pending", "confirmed"].includes(order.status)) {
+          throw new AppError("Order cannot be cancelled at this stage.", 400);
+        }
+        // Optionally, check if the user is the owner of the order
+        if (order.customerId !== userId) {
+          throw new AppError("You can only cancel your own orders.", 403);
+        }
       }
 
       // Update order status
-      await order.update({
-        status: newStatus,
-        updatedAt: new Date()
-      }, { transaction });
+      await order.update(
+        {
+          status: newStatus,
+          updatedAt: new Date(),
+        },
+        { transaction }
+      );
 
       // Handle specific status changes
       switch (newStatus) {
-        case 'confirmed':
+        case "confirmed":
           await this.handleOrderConfirmed(order, transaction);
           break;
-        case 'out_for_delivery':
+        case "out_for_delivery":
           await this.handleOrderOutForDelivery(order, transaction);
           break;
-        case 'delivered':
+        case "delivered":
           await this.handleOrderDelivered(order, transaction);
           break;
-        case 'cancelled':
+        case "cancelled":
           await this.handleOrderCancelled(order, transaction);
           break;
-        case 'returned':
+        case "returned":
           await this.handleOrderReturned(order, transaction);
           break;
       }
@@ -270,7 +337,7 @@ class OrderService {
   calculateShipping(product, quantity) {
     // This would typically involve shipping zones and rates
     // For now, return a simple flat rate
-    const baseShipping = 5.00;
+    const baseShipping = 5.0;
     const weightShipping = (product.weight || 0) * quantity * 0.5;
     return baseShipping + weightShipping;
   }
@@ -314,28 +381,34 @@ class OrderService {
   async processWalletPayment(order, transaction) {
     try {
       const customerWallet = await Wallet.findOne({
-        where: { userId: order.customerId, type: 'customer' }
+        where: { userId: order.customerId, type: "customer" },
       });
 
       if (!customerWallet || customerWallet.balance < order.totalAmount) {
-        throw new AppError('Insufficient wallet balance', 400);
+        throw new AppError("Insufficient wallet balance", 400);
       }
 
       // Deduct from customer wallet
-      await customerWallet.update({
-        balance: customerWallet.balance - order.totalAmount
-      }, { transaction });
+      await customerWallet.update(
+        {
+          balance: customerWallet.balance - order.totalAmount,
+        },
+        { transaction }
+      );
 
       // Create wallet transaction
-      await WalletTransaction.create({
-        walletId: customerWallet.id,
-        userId: order.customerId,
-        type: 'debit',
-        amount: order.totalAmount,
-        description: `Payment for order ${order.orderNumber}`,
-        orderId: order.id,
-        status: 'completed'
-      }, { transaction });
+      await WalletTransaction.create(
+        {
+          walletId: customerWallet.id,
+          userId: order.customerId,
+          type: "debit",
+          amount: order.totalAmount,
+          description: `Payment for order ${order.orderNumber}`,
+          orderId: order.id,
+          status: "completed",
+        },
+        { transaction }
+      );
 
       return { success: true, transactionId: `wallet_${Date.now()}` };
     } catch (error) {
@@ -354,7 +427,7 @@ class OrderService {
     try {
       const orderItems = await OrderItem.findAll({
         where: { orderId: order.id },
-        include: [{ model: Store, as: 'store' }]
+        include: [{ model: Store, as: "store" }],
       });
 
       for (const item of orderItems) {
@@ -364,45 +437,57 @@ class OrderService {
 
         // Add to vendor wallet
         const vendorWallet = await Wallet.findOne({
-          where: { userId: store.userId, type: 'vendor' }
+          where: { userId: store.userId, type: "vendor" },
         });
 
         if (vendorWallet) {
-          await vendorWallet.update({
-            balance: vendorWallet.balance + vendorAmount
-          }, { transaction });
+          await vendorWallet.update(
+            {
+              balance: vendorWallet.balance + vendorAmount,
+            },
+            { transaction }
+          );
 
           // Create wallet transaction
-          await WalletTransaction.create({
-            walletId: vendorWallet.id,
-            userId: store.userId,
-            type: 'credit',
-            amount: vendorAmount,
-            description: `Earnings from order ${order.orderNumber}`,
-            orderId: order.id,
-            status: 'completed'
-          }, { transaction });
+          await WalletTransaction.create(
+            {
+              walletId: vendorWallet.id,
+              userId: store.userId,
+              type: "credit",
+              amount: vendorAmount,
+              description: `Earnings from order ${order.orderNumber}`,
+              orderId: order.id,
+              status: "completed",
+            },
+            { transaction }
+          );
         }
 
         // Add commission to admin wallet
         const adminWallet = await Wallet.findOne({
-          where: { type: 'admin' }
+          where: { type: "admin" },
         });
 
         if (adminWallet) {
-          await adminWallet.update({
-            balance: adminWallet.balance + commission
-          }, { transaction });
+          await adminWallet.update(
+            {
+              balance: adminWallet.balance + commission,
+            },
+            { transaction }
+          );
 
           // Create wallet transaction
-          await WalletTransaction.create({
-            walletId: adminWallet.id,
-            type: 'credit',
-            amount: commission,
-            description: `Commission from order ${order.orderNumber}`,
-            orderId: order.id,
-            status: 'completed'
-          }, { transaction });
+          await WalletTransaction.create(
+            {
+              walletId: adminWallet.id,
+              type: "credit",
+              amount: commission,
+              description: `Commission from order ${order.orderNumber}`,
+              orderId: order.id,
+              status: "completed",
+            },
+            { transaction }
+          );
         }
       }
     } catch (error) {
@@ -413,14 +498,14 @@ class OrderService {
   // Get valid status transitions
   getValidStatusTransitions(currentStatus) {
     const transitions = {
-      'pending': ['confirmed', 'cancelled'],
-      'confirmed': ['processing', 'cancelled'],
-      'processing': ['out_for_delivery', 'cancelled'],
-      'out_for_delivery': ['delivered', 'failed'],
-      'delivered': ['returned'],
-      'failed': ['processing'],
-      'cancelled': [],
-      'returned': []
+      pending: ["confirmed", "cancelled"],
+      confirmed: ["processing", "cancelled"],
+      processing: ["out_for_delivery", "cancelled"],
+      out_for_delivery: ["delivered", "failed"],
+      delivered: ["returned"],
+      failed: ["processing"],
+      cancelled: [],
+      returned: [],
     };
 
     return transitions[currentStatus] || [];
@@ -428,6 +513,7 @@ class OrderService {
 
   // Handle order confirmed
   async handleOrderConfirmed(order, transaction) {
+    console.log("Order confirmed:", order.id);
     // Update inventory and other business logic
     // This would involve updating stock levels, sending notifications, etc.
   }
@@ -458,22 +544,25 @@ class OrderService {
   // Restore inventory after cancellation
   async restoreInventory(order, transaction) {
     const orderItems = await OrderItem.findAll({
-      where: { orderId: order.id }
+      where: { orderId: order.id },
     });
 
     for (const item of orderItems) {
       const stock = await Stock.findOne({
         where: {
           productId: item.productId,
-          storeId: item.storeId
-        }
+          storeId: item.storeId,
+        },
       });
 
       if (stock) {
-        await stock.update({
-          quantity: stock.quantity + item.quantity,
-          reservedQuantity: stock.reservedQuantity - item.quantity
-        }, { transaction });
+        await stock.update(
+          {
+            quantity: stock.quantity + item.quantity,
+            reservedQuantity: stock.reservedQuantity - item.quantity,
+          },
+          { transaction }
+        );
       }
     }
   }
@@ -494,10 +583,10 @@ class OrderService {
   async getOrderStatistics(userId, userRole, filters = {}) {
     try {
       const whereClause = {};
-      
-      if (userRole === 'customer') {
+
+      if (userRole === "customer") {
         whereClause.customerId = userId;
-      } else if (userRole === 'vendor') {
+      } else if (userRole === "vendor") {
         // Get orders for vendor's store
         const store = await Store.findOne({ where: { userId } });
         if (store) {
@@ -510,17 +599,23 @@ class OrderService {
         whereClause.createdAt = { [Op.gte]: new Date(filters.startDate) };
       }
       if (filters.endDate) {
-        whereClause.createdAt = { ...whereClause.createdAt, [Op.lte]: new Date(filters.endDate) };
+        whereClause.createdAt = {
+          ...whereClause.createdAt,
+          [Op.lte]: new Date(filters.endDate),
+        };
       }
 
       const orders = await Order.findAll({
         where: whereClause,
         attributes: [
-          'status',
-          [Order.sequelize.fn('COUNT', Order.sequelize.col('id')), 'count'],
-          [Order.sequelize.fn('SUM', Order.sequelize.col('totalAmount')), 'totalAmount']
+          "status",
+          [Order.sequelize.fn("COUNT", Order.sequelize.col("id")), "count"],
+          [
+            Order.sequelize.fn("SUM", Order.sequelize.col("totalAmount")),
+            "totalAmount",
+          ],
         ],
-        group: ['status']
+        group: ["status"],
       });
 
       return orders;
