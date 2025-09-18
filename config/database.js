@@ -11,11 +11,35 @@ const sequelize = new Sequelize(
     dialect: 'mysql',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
     pool: {
-      max: 5,
-      min: 0,
-      acquire: 30000,
-      idle: 10000
+      max: 10,
+      min: 2,
+      acquire: 60000,
+      idle: 10000,
+      evict: 1000,
     },
+      retry: {
+        max: 3, // Retry a connection up to 3 times
+        match: [
+          /ETIMEDOUT/,
+          /EHOSTUNREACH/,
+          /ECONNRESET/,
+          /ECONNREFUSED/,
+          /ETIMEDOUT/,
+          /ESOCKETTIMEDOUT/,
+          /EHOSTUNREACH/,
+          /EPIPE/,
+          /EAI_AGAIN/,
+          /SequelizeConnectionError/,
+          /SequelizeConnectionRefusedError/,
+          /SequelizeHostNotFoundError/,
+          /SequelizeHostNotReachableError/,
+          /SequelizeInvalidConnectionError/,
+          /SequelizeConnectionTimedOutError/
+        ],
+        backoffBase: 100,
+        backoffExponent: 1.1
+      },
+    
     define: {
       timestamps: true,
       underscored: true,
