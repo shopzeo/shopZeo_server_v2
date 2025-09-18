@@ -48,10 +48,10 @@ const setupAssociations = (models) => {
 
   Category.hasMany(ProductCategory, { foreignKey: 'categoryId', as: 'productCategories' });
   Category.belongsToMany(Product, { through: ProductCategory, as: 'products' });
-  Category.hasMany(SubCategory, { as: 'subCategories', foreignKey: 'parent_id' }); // Corrected foreign key from DB schema
+  Category.hasMany(SubCategory, { as: 'subCategories', foreignKey: 'category_id' }); // Corrected foreign key from DB schema
   Category.hasMany(Product, { foreignKey: 'category_id', as: 'categoryProducts' });
   
-  SubCategory.belongsTo(Category, { as: 'category', foreignKey: 'parent_id' });
+  SubCategory.belongsTo(Category, { as: 'category', foreignKey: 'category_id' });
   SubCategory.hasMany(Product, { foreignKey: 'sub_category_id', as: 'subCategoryProducts' });
 
   Brand.hasMany(ProductBrand, { foreignKey: 'brandId', as: 'productBrands' });
