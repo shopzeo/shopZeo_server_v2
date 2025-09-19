@@ -77,5 +77,15 @@ const SubCategory = sequelize.define('SubCategory', {
     }
   ]
 });
+SubCategory.associate = (models) => {
+  SubCategory.belongsTo(models.Category, {
+    foreignKey: 'category_id',
+    as: 'category'
+  });
 
+  SubCategory.hasMany(models.Product, {
+    foreignKey: 'sub_category_id',
+    as: 'products'
+  });
+};
 module.exports = SubCategory;

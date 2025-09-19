@@ -1,89 +1,145 @@
+const { Op, fn, col, where: sequelizeWhere } = require('sequelize');
 const Product = require('../models/Product');
 const Store = require('../models/Store');
 const Category = require('../models/Category');
 const SubCategory = require('../models/SubCategory');
-const { Op } = require('sequelize');
-const { sequelize } = require('../config/database');
+const ProductMedia = require('../models/ProductMedia');
 
-// Get all products with pagination and search
+
 exports.getProducts = async (req, res) => {
   try {
-    const { 
-      page = 1, 
-      limit = 50, 
-      search = '', 
-      store_id = '', 
-      brand_slug = '', 
+    const {
+      page = 1,
+      limit = 50,
+      search = '',
+      store_id = '',
+      brand_slug = '',
       category_slug = '',
       min_price = '',
       max_price = '',
       is_active = '',
       is_featured = ''
     } = req.query;
-    
-    const whereClause = {};
-    
-    if (search) {
-      whereClause.name = { [Op.like]: `%${search}%` };
-    }
 
+    const rawSlug = (req.query.category_slug ?? req.query.category ?? req.query.slug ?? '');
+    const slug = rawSlug ? rawSlug.toLowerCase() : '';
+
+    const conditions = [];
+
+    // search
+    if (search) conditions.push({ name: { [Op.like]: `%${search}%` } });
+
+    // store / brand
     if (brand_slug) {
-        const store = await Store.findOne({ where: { slug: brand_slug } });
-        if (store) {
-            whereClause.store_id = store.id;
-        } else {
-            return res.json({ success: true, products: [], pagination: { total: 0, pages: 0 } });
-        }
+      const store = await Store.findOne({ where: { slug: brand_slug }, attributes: ['id'] });
+      if (!store) {
+        return res.json({ success: true, message: 'No products found for this store', products: [], pagination: { page: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 } });
+      }
+      conditions.push({ store_id: store.id });
     } else if (store_id) {
-        whereClause.store_id = store_id;
+      conditions.push({ store_id });
     }
 
-    if (category_slug) {
-        const mainCategory = await Category.findOne({ where: { slug: category_slug } });
-        if (mainCategory) {
-            const subCategories = await SubCategory.findAll({ where: { category_id: mainCategory.id } });
-            const subCategoryIds = subCategories.map(sc => sc.id);
-            whereClause[Op.or] = [
-                { category_id: mainCategory.id },
-                { sub_category_id: { [Op.in]: subCategoryIds } }
-            ];
+    // category_slug 
+    if (slug) {
+      // try match main category case-insensitively
+      const mainCategory = await Category.findOne({
+        where: sequelizeWhere(fn('LOWER', col('slug')), slug),
+        attributes: ['id']
+      });
+
+      if (mainCategory) {
+        const subCategories = await SubCategory.findAll({
+          where: { category_id: mainCategory.id },
+          attributes: ['id']
+        });
+        const subCategoryIds = subCategories.map(sc => sc.id);
+
+        if (subCategoryIds.length) {
+          conditions.push({ sub_category_id: { [Op.in]: subCategoryIds } });
         } else {
-            const subCategory = await SubCategory.findOne({ where: { slug: category_slug } });
-            if (subCategory) {
-                whereClause.sub_category_id = subCategory.id;
-            } else {
-                return res.json({ success: true, products: [], pagination: { total: 0, pages: 0 } });
-            }
+          conditions.push({ category_id: mainCategory.id });
         }
+      } else {
+        const subCategory = await SubCategory.findOne({
+          where: sequelizeWhere(fn('LOWER', col('slug')), slug),
+          attributes: ['id']
+        });
+
+        if (subCategory) {
+          conditions.push({ sub_category_id: subCategory.id });
+        } else {
+          return res.json({
+            success: true,
+            message: `No products found for category slug: "${rawSlug}"`,
+            products: [],
+            pagination: { page: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 }
+          });
+        }
+      }
     }
-    
-    if (is_active !== '') whereClause.is_active = is_active === 'true';
-    if (is_featured !== '') whereClause.is_featured = is_featured === 'true';
-    
+
+    // status filters
+    if (is_active !== '') conditions.push({ is_active: is_active === 'true' });
+    if (is_featured !== '') conditions.push({ is_featured: is_featured === 'true' });
+
+    // price filters
     if (min_price || max_price) {
-      whereClause.selling_price = {};
-      if (min_price) whereClause.selling_price[Op.gte] = parseFloat(min_price);
-      if (max_price) whereClause.selling_price[Op.lte] = parseFloat(max_price);
+      const priceFilter = {};
+      if (min_price) priceFilter[Op.gte] = parseFloat(min_price);
+      if (max_price) priceFilter[Op.lte] = parseFloat(max_price);
+      conditions.push({ selling_price: priceFilter });
     }
-    
+
+    const whereClause = conditions.length ? { [Op.and]: conditions } : {};
+
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    
+
     const { count, rows: products } = await Product.findAndCountAll({
       where: whereClause,
       limit: parseInt(limit),
-      offset: offset,
-      order: [['created_at', 'DESC']],
+      offset,
+      order: [
+        ['created_at', 'DESC'],
+        [{ model: ProductMedia, as: 'productMedia' }, 'media_order', 'ASC']
+      ],
       include: [
         { model: Store, as: 'store', attributes: ['id', 'name', 'slug'] },
-        { model: Category, as: 'category', attributes: ['id', 'name', 'slug'] },
-        { model: require('../models/ProductMedia'), as: 'productMedia', attributes: ['id', 'media_type', 'media_url', 'media_order'], where: { is_active: true }, required: false, order: [['media_order', 'ASC']] }
-      ]
+        { model: Category, as: 'category', attributes: ['id', 'name', 'slug'], required: false },
+        {
+          model: SubCategory,
+          as: 'subCategory',
+          attributes: ['id', 'name', 'slug'],
+          required: false,
+          include: [
+            { model: Category, as: 'category', attributes: ['id', 'name', 'slug'], required: false }
+          ]
+        },
+        {
+          model: ProductMedia,
+          as: 'productMedia',
+          attributes: ['id', 'media_type', 'media_url', 'media_order'],
+          required: false
+        }
+      ],
+      distinct: true
     });
-    
-    res.json({
+
+    const mappedProducts = products.map(p => {
+      const data = p.toJSON();
+
+      const unifiedCategory = data.subCategory?.category || data.category || null;
+
+      const subCategory = data.subCategory
+        ? { id: data.subCategory.id, name: data.subCategory.name, slug: data.subCategory.slug }
+        : null;
+      return { ...data, category: unifiedCategory, subCategory };
+    });
+
+    return res.json({
       success: true,
       message: 'Products retrieved successfully',
-      products: products,
+      products: mappedProducts,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -91,21 +147,19 @@ exports.getProducts = async (req, res) => {
         pages: Math.ceil(count / parseInt(limit))
       }
     });
-  } catch (error) {
-    console.error('Get products error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to retrieve products',
-      error: error.message
-    });
+  } catch (err) {
+    console.error('ERROR getProducts:', err);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve products', error: err.message });
   }
 };
+
+
 
 // Get single product
 exports.getProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const product = await Product.findByPk(id, {
       include: [
         { model: Store, as: 'store', attributes: ['id', 'name'] },
@@ -113,11 +167,11 @@ exports.getProduct = async (req, res) => {
         { model: require('../models/ProductMedia'), as: 'productMedia', attributes: ['id', 'media_type', 'media_url', 'media_order'], where: { is_active: true }, required: false, order: [['media_order', 'ASC']] }
       ]
     });
-    
+
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
-    
+
     res.json({ success: true, message: 'Product retrieved successfully', product: product });
   } catch (error) {
     console.error('Get product error:', error);
@@ -129,7 +183,7 @@ exports.getProduct = async (req, res) => {
 exports.createProduct = async (req, res) => {
   try {
     const productData = req.body;
-    
+
     if (req.files) {
       Object.keys(req.files).forEach(fieldName => {
         if (req.files[fieldName] && req.files[fieldName][0]) {
@@ -137,24 +191,24 @@ exports.createProduct = async (req, res) => {
         }
       });
     }
-    
+
     const requiredFields = ['product_code', 'sku_id', 'name', 'selling_price', 'quantity', 'store_id', 'category_id', 'sub_category_id'];
     for (const field of requiredFields) {
       if (!productData[field]) {
         return res.status(400).json({ success: false, message: `Missing required field: ${field}` });
       }
     }
-    
+
     if (!productData.id) {
       const { v4: uuidv4 } = require('uuid');
       productData.id = uuidv4();
     }
-    
+
     productData.is_active = productData.is_active !== undefined ? productData.is_active : true;
     productData.is_featured = productData.is_featured !== undefined ? productData.is_featured : false;
-    
+
     const product = await Product.create(productData);
-    
+
     const createdProduct = await Product.findByPk(product.id, {
       include: [
         { model: Store, as: 'store', attributes: ['id', 'name'] },
@@ -162,7 +216,7 @@ exports.createProduct = async (req, res) => {
         { model: require('../models/ProductMedia'), as: 'productMedia', attributes: ['id', 'media_type', 'media_url', 'media_order'], where: { is_active: true }, required: false, order: [['media_order', 'ASC']] }
       ]
     });
-    
+
     res.status(201).json({ success: true, message: 'Product created successfully', product: createdProduct });
   } catch (error) {
     console.error('Create product error:', error);
@@ -175,12 +229,12 @@ exports.updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const productData = req.body;
-    
+
     const existingProduct = await Product.findByPk(id);
     if (!existingProduct) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
-    
+
     if (req.files) {
       Object.keys(req.files).forEach(fieldName => {
         if (req.files[fieldName] && req.files[fieldName][0]) {
@@ -188,16 +242,16 @@ exports.updateProduct = async (req, res) => {
         }
       });
     }
-    
+
     const requiredFields = ['product_code', 'sku_id', 'name', 'selling_price', 'quantity', 'store_id', 'category_id', 'sub_category_id'];
     for (const field of requiredFields) {
       if (!productData[field]) {
         return res.status(400).json({ success: false, message: `Missing required field: ${field}` });
       }
     }
-    
+
     await existingProduct.update(productData);
-    
+
     const updatedProduct = await Product.findByPk(id, {
       include: [
         { model: Store, as: 'store', attributes: ['id', 'name'] },
@@ -205,7 +259,7 @@ exports.updateProduct = async (req, res) => {
         { model: require('../models/ProductMedia'), as: 'productMedia', attributes: ['id', 'media_type', 'media_url', 'media_order'], where: { is_active: true }, required: false, order: [['media_order', 'ASC']] }
       ]
     });
-    
+
     res.json({ success: true, message: 'Product updated successfully', product: updatedProduct });
   } catch (error) {
     console.error('Update product error:', error);
@@ -217,14 +271,14 @@ exports.updateProduct = async (req, res) => {
 exports.deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const existingProduct = await Product.findByPk(id);
     if (!existingProduct) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
-    
+
     await existingProduct.destroy();
-    
+
     res.json({ success: true, message: 'Product deleted successfully' });
   } catch (error) {
     console.error('Delete product error:', error);
@@ -283,7 +337,7 @@ exports.toggleProductFeatured = async (req, res) => {
     const { id } = req.params;
     const product = await Product.findByPk(id);
     if (!product) {
-        return res.status(404).json({ success: false, message: 'Product not found' });
+      return res.status(404).json({ success: false, message: 'Product not found' });
     }
     product.is_featured = !product.is_featured;
     await product.save();
@@ -305,32 +359,32 @@ exports.toggleProductFeatured = async (req, res) => {
 // Search products with full text search
 exports.searchProducts = async (req, res) => {
   try {
-    const { 
-      q = '', 
-      page = 1, 
+    const {
+      q = '',
+      page = 1,
       limit = 20
     } = req.query;
-    
+
     if (!q.trim()) {
       return res.status(400).json({ success: false, message: 'Search query is required' });
     }
-    
+
     const searchQuery = q.trim();
     const offset = (parseInt(page) - 1) * parseInt(limit);
-    
-    const replacements = { 
-        searchQuery: `*${searchQuery}*`,
-        limit: parseInt(limit),
-        offset: offset
+
+    const replacements = {
+      searchQuery: `*${searchQuery}*`,
+      limit: parseInt(limit),
+      offset: offset
     };
-    
+
     const countQuery = `SELECT COUNT(*) as count FROM products WHERE MATCH(name, description) AGAINST(:searchQuery IN BOOLEAN MODE)`;
     const [countResult] = await sequelize.query(countQuery, { replacements });
     const count = countResult[0].count;
-    
+
     const productsQuery = `SELECT * FROM products WHERE MATCH(name, description) AGAINST(:searchQuery IN BOOLEAN MODE) LIMIT :limit OFFSET :offset`;
     const [products] = await sequelize.query(productsQuery, { replacements });
-    
+
     res.json({
       success: true,
       message: 'Search completed successfully',
@@ -396,16 +450,16 @@ exports.upload = multer({
 
 // Bulk upload products from CSV
 exports.bulkUploadProducts = async (req, res) => {
-    // This function remains unchanged.
-    try {
-        if (!req.file) {
-            return res.status(400).json({ success: false, message: 'CSV file is required' });
-        }
-        // ... (full implementation of bulk upload)
-        res.status(501).json({ success: false, message: 'Bulk upload is complex and not part of this update.' });
-    } catch (error) {
-        console.error('Bulk upload error:', error);
-        res.status(500).json({ success: false, message: 'Failed to process CSV upload', error: error.message });
+  // This function remains unchanged.
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'CSV file is required' });
     }
+    // ... (full implementation of bulk upload)
+    res.status(501).json({ success: false, message: 'Bulk upload is complex and not part of this update.' });
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    res.status(500).json({ success: false, message: 'Failed to process CSV upload', error: error.message });
+  }
 };
 

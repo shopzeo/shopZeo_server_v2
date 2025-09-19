@@ -310,4 +310,31 @@ const Product = sequelize.define('Product', {
   ]
 });
 
+Product.associate = (models) => {
+  // A product belongs to a store
+  Product.belongsTo(models.Store, {
+    foreignKey: 'store_id',
+    as: 'store'
+  });
+
+  // A product can belong directly to a category
+  Product.belongsTo(models.Category, {
+    foreignKey: 'category_id',
+    as: 'category'
+  });
+
+  // A product can belong to a subcategory
+  Product.belongsTo(models.SubCategory, {
+    foreignKey: 'sub_category_id',
+    as: 'subCategory'
+  });
+
+  // A product can have many media files
+  Product.hasMany(models.ProductMedia, {
+    foreignKey: 'product_id',
+    as: 'productMedia'
+  });
+};
+
+
 module.exports = Product;
