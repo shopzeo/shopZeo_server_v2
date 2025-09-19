@@ -202,7 +202,7 @@ const setupDatabase = async () => {
         totalAmount: 1054.98,
         commissionAmount: 105.50,
         vendorAmount: 949.48,
-        currency: 'USD',
+        currency: 'INR',
         shippingAddress: {
           street: '123 Main St',
           city: 'New York',
@@ -234,7 +234,7 @@ const setupDatabase = async () => {
         totalAmount: 1322.99,
         commissionAmount: 132.30,
         vendorAmount: 1190.69,
-        currency: 'USD',
+        currency: 'INR',
         shippingAddress: {
           street: '456 Oak Ave',
           city: 'Los Angeles',

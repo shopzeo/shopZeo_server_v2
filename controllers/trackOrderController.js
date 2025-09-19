@@ -1,4 +1,4 @@
-const { Order, Shipment, OrderItem, Product, Store } = require('../models/associations');
+const db = require('../models'); 
 const { AppError } = require('../middleware/errorHandler');
 
 const catchAsync = fn => {
@@ -9,15 +9,18 @@ const catchAsync = fn => {
 
 // Track an order
 exports.trackOrder = catchAsync(async (req, res, next) => {
-  const { orderId } = req.params;
+ const { orderId } = req.params; 
   if (!req.user || !req.user.id) {
     return next(new AppError('Authentication is required. Please log in.', 401));
   }
 
-  const order = await Order.findOne({
-    where: { id: orderId, customerId: req.user.id },
+  const order = await db.Order.findOne({
+    where: { 
+      orderNumber: orderId, // 'id' ki jagah 'orderNumber' se dhoondhein
+      customerId: req.user.id 
+    },
     include: [{
-      model: Shipment,
+      model: db.Shipment, // 'db.Shipment' ka istemal karein
       as: 'shipments',
     }],
   });
