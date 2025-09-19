@@ -9,7 +9,7 @@ class PaymentService {
     const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!keyId || !keySecret) {
-      console.error('❌ Razorpay API keys are not set in the environment variables.');
+      console.error('Razorpay API keys are not set in the environment variables.');
       throw new Error('Razorpay API keys are not configured.');
     }
 
@@ -53,7 +53,7 @@ class PaymentService {
         },
       });
 
-      console.log('✅ Razorpay order created successfully:', razorpayOrder.id);
+      console.log('Razorpay order created successfully:', razorpayOrder.id);
 
       await order.update({
         paymentGateway: 'razorpay',
@@ -74,11 +74,11 @@ class PaymentService {
     } catch (error) {
       // Better error handling for Razorpay API response
       if (error.error && error.error.description) {
-        console.error('❌ Razorpay API Error Response:', error.error.description);
+        console.error(' Razorpay API Error Response:', error.error.description);
         throw new AppError(error.error.description, error.statusCode || 400);
       }
       
-      console.error('❌ Razorpay order creation failed:', error.message);
+      console.error(' Razorpay order creation failed:', error.message);
       throw new AppError('Failed to create Razorpay order', 500);
     }
   }
@@ -119,7 +119,7 @@ class PaymentService {
         throw new AppError('Payment verification failed. Signature mismatch.', 400);
       }
       
-      console.log('✅ Razorpay payment signature verified successfully.');
+      console.log(' Razorpay payment signature verified successfully.');
 
       const transaction = await Order.sequelize.transaction();
       try {
@@ -148,7 +148,7 @@ class PaymentService {
         
         await transaction.commit();
 
-        console.log('✅ Order and payment records updated successfully in the database.');
+        console.log(' Order and payment records updated successfully in the database.');
 
         return {
           success: true,
@@ -160,11 +160,11 @@ class PaymentService {
         };
       } catch (dbError) {
         await transaction.rollback();
-        console.error('❌ Database update failed after successful verification:', dbError);
+        console.error(' Database update failed after successful verification:', dbError);
         throw new AppError('Failed to update order and payment records', 500);
       }
     } catch (error) {
-      console.error('❌ Payment verification failed:', error.message);
+      console.error(' Payment verification failed:', error.message);
       throw new AppError(error.message, error.statusCode || 500);
     }
   }

@@ -5,10 +5,9 @@ const { authenticateToken } = require('../middleware/userAuth.js');
 const {
   createRazorpayOrderValidator,
   verifyRazorpayPaymentValidator,
-} = require('../validators/paymentValidator'); // <-- import validators
+} = require('../validators/paymentValidator');
 const { validationResult } = require('express-validator');
 
-// Middleware to handle validation errors
 const handleValidationErrors = (req, res, next) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -17,21 +16,23 @@ const handleValidationErrors = (req, res, next) => {
   next();
 };
 
-// Protect all payment routes
 router.use(authenticateToken);
 
-// Get Razorpay Key
 router.get('/get-key', paymentController.getRazorpayKey);
 
-// Create Razorpay Order (with validation)
 router.post(
-  '/create-order/:orderId',
+  '/api/payments/create-order/:orderId',
   createRazorpayOrderValidator,
   handleValidationErrors,
   paymentController.createRazorpayOrder
 );
 
-// Verify Razorpay Payment (with validation)
+// Naya endpoint joda gaya hai
+router.post(
+  '/razorpay/create-order-for-multiple',
+  paymentController.createRazorpayOrderForMultipleOrders
+);
+
 router.post(
   '/verify-payment',
   verifyRazorpayPaymentValidator,
