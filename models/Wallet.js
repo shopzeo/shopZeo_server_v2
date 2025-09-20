@@ -28,7 +28,7 @@ const Wallet = sequelize.define('Wallet', {
   currency: {
     type: DataTypes.STRING(3),
     allowNull: false,
-    defaultValue: 'USD'
+    defaultValue: 'INR'
   },
   isActive: {
     type: DataTypes.BOOLEAN,

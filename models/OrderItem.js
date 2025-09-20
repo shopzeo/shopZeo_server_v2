@@ -55,18 +55,6 @@ const OrderItem = sequelize.define('OrderItem', {
     allowNull: false,
     field: 'total_price'
   },
-  // THE FIX: Removed fields that do not exist in your `order_items` table:
-  // - variantId
-  // - productSku
-  // - discountAmount
-  // - taxAmount
-  // - finalPrice
-  // - weight
-  // - attributes
-  // - notes
-  // - isReturned
-  // - returnReason
-  // - returnDate
   createdAt: {
     type: DataTypes.DATE,
     field: 'created_at'
@@ -80,8 +68,6 @@ const OrderItem = sequelize.define('OrderItem', {
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
-  // THE FIX: Removed hooks that were trying to calculate fields that do not exist in the database.
-  // This calculation is now correctly handled in the `orderService.js` before saving.
   hooks: {}
 });
 

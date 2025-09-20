@@ -108,7 +108,7 @@ const Order = sequelize.define('Order', {
   currency: {
     type: DataTypes.STRING(3),
     allowNull: false,
-    defaultValue: 'USD'
+    defaultValue: 'INR'
   },
   exchangeRate: {
     type: DataTypes.DECIMAL(10, 6),

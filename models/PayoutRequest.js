@@ -27,7 +27,7 @@ const PayoutRequest = sequelize.define('PayoutRequest', {
   currency: {
     type: DataTypes.STRING(3),
     allowNull: false,
-    defaultValue: 'USD'
+    defaultValue: 'INR'
   },
   paymentMethod: {
     type: DataTypes.ENUM('bank_transfer', 'paypal', 'stripe', 'check', 'other'),

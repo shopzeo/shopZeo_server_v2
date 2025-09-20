@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
       wallet = await Wallet.create({
         userId: req.user.id,
         balance: 0,
-        currency: 'USD'
+        currency: 'INR'
       });
     }
     
@@ -45,7 +45,7 @@ router.post('/add-funds', async (req, res) => {
       wallet = await Wallet.create({
         userId: req.user.id,
         balance: 0,
-        currency: 'USD'
+        currency: 'INR'
       });
     }
     

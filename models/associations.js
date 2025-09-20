@@ -92,6 +92,7 @@ const setupAssociations = (models) => {
   Order.hasMany(OrderItem, { foreignKey: 'order_id', as: 'items' }); // This alias is critical for the controller
   OrderItem.belongsTo(Order, { foreignKey: 'order_id' });
   
+  Order.hasMany(Shipment, { foreignKey: 'orderId', as: 'shipments' });
   OrderItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
   Product.hasMany(OrderItem, { foreignKey: 'product_id' });
   // --- END OF NEW ASSOCIATIONS ---

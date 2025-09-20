@@ -8,17 +8,19 @@ const Payment = sequelize.define('Payment', {
     autoIncrement: true
   },
   orderId: {
-    type: DataTypes.INTEGER,
+    type: DataTypes.CHAR(36),
     allowNull: false,
+    field: 'orderId', // Explicitly map to the DB column name
     references: {
       model: 'orders',
       key: 'id'
     }
   },
   paymentNumber: {
-    type: DataTypes.STRING(20),
+    type: DataTypes.STRING(255), // VARCHAR(20) se 255 kar diya gaya hai
     allowNull: false,
-    unique: true
+    unique: true,
+    field: 'paymentNumber' // Explicitly map
   },
   amount: {
     type: DataTypes.DECIMAL(10, 2),
@@ -27,7 +29,7 @@ const Payment = sequelize.define('Payment', {
   currency: {
     type: DataTypes.STRING(3),
     allowNull: false,
-    defaultValue: 'USD'
+    defaultValue: 'INR'
   },
   method: {
     type: DataTypes.ENUM('stripe', 'paypal', 'razorpay', 'cod', 'bank_transfer', 'wallet', 'other'),
@@ -41,41 +43,57 @@ const Payment = sequelize.define('Payment', {
   gatewayTransactionId: {
     type: DataTypes.STRING(255),
     allowNull: true,
-    comment: 'Transaction ID from payment gateway'
+    field: 'gatewayTransactionId' // Explicitly map
   },
   gatewayResponse: {
     type: DataTypes.JSON,
     allowNull: true,
-    comment: 'Response from payment gateway'
+    field: 'gatewayResponse' // Explicitly map
   },
   failureReason: {
     type: DataTypes.TEXT,
-    allowNull: true
+    allowNull: true,
+    field: 'failureReason' // Explicitly map
   },
   processedAt: {
     type: DataTypes.DATE,
-    allowNull: true
+    allowNull: true,
+    field: 'processedAt' // Explicitly map
   },
   refundedAt: {
     type: DataTypes.DATE,
-    allowNull: true
+    allowNull: true,
+    field: 'refundedAt' // Explicitly map
   },
   refundAmount: {
     type: DataTypes.DECIMAL(10, 2),
-    allowNull: true
+    allowNull: true,
+    field: 'refundAmount' // Explicitly map
   },
   refundReason: {
     type: DataTypes.TEXT,
-    allowNull: true
+    allowNull: true,
+    field: 'refundReason' // Explicitly map
   },
   isActive: {
     type: DataTypes.BOOLEAN,
     allowNull: false,
-    defaultValue: true
+    defaultValue: true,
+    field: 'isActive' // Explicitly map
+  },
+  createdAt: {
+      type: DataTypes.DATE,
+      field: 'createdAt'
+  },
+  updatedAt: {
+      type: DataTypes.DATE,
+      field: 'updatedAt'
   }
 }, {
   tableName: 'payments',
   timestamps: true,
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
   hooks: {
     beforeCreate: (payment) => {
       if (!payment.paymentNumber) {
@@ -83,29 +101,7 @@ const Payment = sequelize.define('Payment', {
       }
     }
   },
-  indexes: [
-    {
-      fields: ['paymentNumber']
-    },
-    {
-      fields: ['orderId']
-    },
-    {
-      fields: ['method']
-    },
-    {
-      fields: ['status']
-    },
-    {
-      fields: ['gatewayTransactionId']
-    },
-    {
-      fields: ['isActive']
-    },
-    {
-      fields: ['createdAt']
-    }
-  ]
+  // indexes ko alag se define karne ki zaroorat nahi, model definition mein hi ho gaya hai
 });
 
 module.exports = Payment;

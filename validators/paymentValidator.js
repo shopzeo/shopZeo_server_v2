@@ -1,9 +1,9 @@
-const { body } = require('express-validator');
+const { body, param } = require('express-validator'); // param ko import karein
 
 // Validation for creating a Razorpay order
 const createRazorpayOrderValidator = [
-  // isUUID function check karta hai ki orderId sahi UUID format mein hai ya nahi.
-  body('orderId').isUUID().withMessage('Invalid Order ID format.')
+  // ab 'param' ka istemal karein taki orderId URL se aaye
+  param('orderId').isUUID().withMessage('Invalid Order ID format.')
 ];
 
 // Validation for verifying a Razorpay payment
