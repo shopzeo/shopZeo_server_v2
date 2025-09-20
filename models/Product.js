@@ -26,7 +26,8 @@ const Product = sequelize.define('Product', {
   },
   sku_id: {
     type: DataTypes.STRING(100),
-    allowNull: true,
+    allowNull: true, 
+    unique: false,   // Allow duplicate SKUs as requested
     comment: 'Stock Keeping Unit'
   },
   description: {
@@ -272,7 +273,6 @@ const Product = sequelize.define('Product', {
       key: 'id'
     }
   },
-  // brand_id field removed - not present in database table
   // SEO fields
   meta_title: {
     type: DataTypes.STRING(255),
@@ -289,6 +289,7 @@ const Product = sequelize.define('Product', {
   slug: {
     type: DataTypes.STRING(500),
     allowNull: true,
+    unique: false, // <-- YEH BADLAV KIYA GAYA HAI
     comment: 'URL-friendly product name'
   }
 }, {
@@ -296,11 +297,9 @@ const Product = sequelize.define('Product', {
   timestamps: true,
   underscored: true,
   indexes: [
-    // { fields: ['product_code'] }, // Removed - no longer unique
     { fields: ['store_id'] },
     { fields: ['category_id'] },
     { fields: ['sub_category_id'] },
-    // { fields: ['brand_id'] }, // Removed - field doesn't exist in DB
     { fields: ['is_active'] },
     { fields: ['is_featured'] },
     { fields: ['rating'] },
@@ -311,30 +310,10 @@ const Product = sequelize.define('Product', {
 });
 
 Product.associate = (models) => {
-  // A product belongs to a store
-  Product.belongsTo(models.Store, {
-    foreignKey: 'store_id',
-    as: 'store'
-  });
-
-  // A product can belong directly to a category
-  Product.belongsTo(models.Category, {
-    foreignKey: 'category_id',
-    as: 'category'
-  });
-
-  // A product can belong to a subcategory
-  Product.belongsTo(models.SubCategory, {
-    foreignKey: 'sub_category_id',
-    as: 'subCategory'
-  });
-
-  // A product can have many media files
-  Product.hasMany(models.ProductMedia, {
-    foreignKey: 'product_id',
-    as: 'productMedia'
-  });
+  Product.belongsTo(models.Store, { foreignKey: 'store_id', as: 'store' });
+  Product.belongsTo(models.Category, { foreignKey: 'category_id', as: 'category' });
+  Product.belongsTo(models.SubCategory, { foreignKey: 'sub_category_id', as: 'subCategory' });
+  Product.hasMany(models.ProductMedia, { foreignKey: 'product_id', as: 'productMedia' });
 };
-
 
 module.exports = Product;

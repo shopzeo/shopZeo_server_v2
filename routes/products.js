@@ -1,12 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const productController = require('../controllers/productController');
-// const { authenticate, authorize } = require('../middleware/auth');
+const bulkImportController = require('../controllers/bulkImportController');
 
-// Configure multer for CSV uploads
+// --- FIX: Use diskStorage to save the file and get a path ---
+const tempUploadDir = 'uploads/temp';
+
+// Ensure the temp directory exists
+if (!fs.existsSync(tempUploadDir)) {
+  fs.mkdirSync(tempUploadDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, tempUploadDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'bulk-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: storage, // Use the disk storage configuration
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
@@ -19,8 +38,6 @@ const upload = multer({
   }
 });
 
-// Temporarily disable authentication for testing
-// router.use(authenticate);
 
 // Get all products
 router.get('/', productController.getProducts);
@@ -81,6 +98,6 @@ router.patch('/:id/toggle-featured', productController.toggleProductFeatured);
 router.get('/export/all', productController.exportProducts);
 
 // Bulk upload products from CSV
-router.post('/bulk-upload', upload.single('csv'), productController.bulkUploadProducts);
+router.post('/bulk-upload', upload.single('csv'), bulkImportController.bulkImportProducts);
 
 module.exports = router;
