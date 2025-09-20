@@ -4,7 +4,6 @@ const { sequelize } = require('../config/database');
 const { Sequelize } = require('sequelize'); // FIX: Import Sequelize directly from the library
 const Product = require('../models/Product');
 const Category = require('../models/Category');
-const SubCategory = require('../models/SubCategory');
 const Store = require('../models/Store');
 const { v4: uuidv4 } = require('uuid');
 
@@ -72,7 +71,7 @@ const bulkImportProducts = async (req, res) => {
                 const name = validateRequired(row['Name'], 'Name');
                 const storeId = validateRequired(row['Store ID'], 'Store ID');
                 const categoryId = validateRequired(row['Category ID'], 'Category ID');
-                const skuId = row['Sku Id'] || null; // SKU is now optional
+                const skuId = row['Sku Id'] || null;
 
                 // --- Foreign Key Checks ---
                 const store = await Store.findByPk(storeId, { transaction });
@@ -81,9 +80,9 @@ const bulkImportProducts = async (req, res) => {
                 const category = await Category.findByPk(categoryId, { transaction });
                 if (!category) throw new Error(`Category with ID "${categoryId}" does not exist.`);
 
-                // --- Build Product Data ---
+                // --- Build Full Product Data Object ---
                 const productData = {
-                    id: uuidv4(), // Always create a new unique ID
+                    id: uuidv4(),
                     name,
                     sku_id: skuId,
                     store_id: storeId,
@@ -96,9 +95,30 @@ const bulkImportProducts = async (req, res) => {
                     quantity: parseInt(row['Quantity']) || 0,
                     slug: await generateSlug(name, transaction), // Generate a unique slug
                     is_active: true,
+                    
+                    // **FIX: ADDING ALL IMAGE AND VIDEO COLUMNS**
+                    image_1: row['Image 1'] || null,
+                    image_2: row['Image 2'] || null,
+                    image_3: row['Image 3'] || null,
+                    image_4: row['Image 4'] || null,
+                    image_5: row['Image 5'] || null,
+                    image_6: row['Image 6'] || null,
+                    image_7: row['Image 7'] || null,
+                    image_8: row['Image 8'] || null,
+                    image_9: row['Image 9'] || null,
+                    image_10: row['Image 10'] || null,
+                    video_1: row['Video 1'] || null,
+                    video_2: row['Video 2'] || null,
+                    
+                    // Adding other text-based fields
+                    product_type: row['Product Type'] || null,
+                    size: row['Size'] || null,
+                    colour: row['Colour'] || null,
+                    return_exchange_condition: row['Return/Exchange Condition'] || null,
+                    hsn_code: row['HSN Code'] || null,
                 };
 
-                // **ALWAYS CREATE A NEW PRODUCT**
+                // Create a new product for every row
                 await Product.create(productData, { transaction });
                 results.created++;
                 results.success++;
