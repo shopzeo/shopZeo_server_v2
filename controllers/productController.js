@@ -192,7 +192,7 @@ exports.createProduct = async (req, res) => {
       });
     }
 
-    const requiredFields = ['product_code', 'sku_id', 'name', 'selling_price', 'quantity', 'store_id', 'category_id', 'sub_category_id'];
+    const requiredFields = ['product_code', 'sku_id', 'name', 'selling_price', 'quantity', 'store_id', 'category_id', 'sub_category_id', 'subcatagory_child_id'];
     for (const field of requiredFields) {
       if (!productData[field]) {
         return res.status(400).json({ success: false, message: `Missing required field: ${field}` });
