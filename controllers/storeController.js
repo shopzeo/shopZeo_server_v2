@@ -96,10 +96,14 @@ const createStore = async (req, res) => {
                 return res.status(400).json({ success: false, message: 'Password is required for a new vendor account.' });
             }
             // **FIXED LOGIC FOR NAMES**
-            const nameParts = name.split(' ');
+           const nameParts = name.split(' ');
             const first_name = nameParts[0];
-            const last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'User'; // Provide a default last name
-
+            let last_name = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Owner'; // Default last name
+            
+            // Ensure last_name meets the minimum length validation from the User model
+            if (last_name.length < 2) {
+                last_name = 'Owner';
+            }
             vendorUser = await User.create({
                 first_name,
                 last_name,
@@ -113,9 +117,9 @@ const createStore = async (req, res) => {
         }
 
         // --- Store Creation with Correct File Paths ---
-        const logoPath = req.files && req.files.logo ? req.files.logo[0].path : null;
-        const bannerPath = req.files && req.files.banner ? req.files.banner[0].path : null;
-        const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
+       const logoPath = req.files && req.files.logo ? `uploads/stores/${req.files.logo[0].filename}` : null;
+       const bannerPath = req.files && req.files.banner ? `uploads/stores/${req.files.banner[0].filename}` : null;
+       const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') + '-' + Date.now();
 
         const newStore = await Store.create({
             name, slug, description, address, city, state, country, postal_code, phone, email,
@@ -213,13 +217,14 @@ const updateStore = async (req, res) => {
         const oldBannerPath = store.banner;
 
         if (req.files && req.files.logo) {
-            updateData.logo = req.files.logo[0].path;
-            if (oldLogoPath) await cleanupOldFile(oldLogoPath); // Delete old logo
+            updateData.logo = `uploads/stores/${req.files.logo[0].filename}`;
+            if (oldLogoPath) await cleanupOldFile(oldLogoPath);
         }
         if (req.files && req.files.banner) {
-            updateData.banner = req.files.banner[0].path;
-            if (oldBannerPath) await cleanupOldFile(oldBannerPath); // Delete old banner
+            updateData.banner = `uploads/stores/${req.files.banner[0].filename}`;
+            if (oldBannerPath) await cleanupOldFile(oldBannerPath);
         }
+
 
         await store.update(updateData, { transaction: t });
         await t.commit();
