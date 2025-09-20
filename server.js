@@ -27,8 +27,8 @@ const PORT = config.PORT;
 
 // सुरक्षा के लिए Helmet
 app.use(helmet({
-  contentSecurityPolicy: false, 
-  crossOriginEmbedderPolicy: false, 
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
@@ -48,7 +48,7 @@ app.use(cors({
     }
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS","PATCH"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "X-API-Key"]
 }));
 
@@ -68,7 +68,7 @@ const nocache = (req, res, next) => {
   next();
 };
 
-app.use('/api', nocache); 
+app.use('/api', nocache);
 
 
 app.use(session({
@@ -100,6 +100,7 @@ const categoryHierarchyRoutes = require('./routes/categoryHierarchy');
 const orderRoutes = require('./routes/orders');
 const paymentRoutes = require('./routes/payments');
 const trackOrderRoutes = require('./routes/trackOrder');
+const MappingSubcategoryRoute = require('./routes/MappingSubcategoryRoute');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user-auth', userAuthRoutes);
@@ -115,7 +116,7 @@ app.use('/api/category-hierarchy', categoryHierarchyRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/track', trackOrderRoutes);
-
+app.use('/api/subcategories-item', MappingSubcategoryRoute);
 // Health Check रूट
 app.get('/health', (req, res) => {
   res.json({

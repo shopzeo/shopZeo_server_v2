@@ -5,8 +5,8 @@ const { AppError } = require('../middleware/errorHandler');
 
 class PaymentService {
   constructor() {
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keyId = "process.env.RAZORPAY_KEY_ID";
+    const keySecret = "process.env.RAZORPAY_KEY_SECRET";
 
     if (!keyId || !keySecret) {
       console.error('❌ Razorpay API keys are not set in the environment variables.');
@@ -36,10 +36,10 @@ class PaymentService {
     if (order.paymentStatus !== 'pending') {
       throw new AppError('Order has already been paid or is not in a pending state', 400);
     }
-    
+
     // Validate order amount
     if (!order.totalAmount || order.totalAmount <= 0) {
-        throw new AppError('Order amount must be a positive number.', 400);
+      throw new AppError('Order amount must be a positive number.', 400);
     }
 
     try {
@@ -77,7 +77,7 @@ class PaymentService {
         console.error('❌ Razorpay API Error Response:', error.error.description);
         throw new AppError(error.error.description, error.statusCode || 400);
       }
-      
+
       console.error('❌ Razorpay order creation failed:', error.message);
       throw new AppError('Failed to create Razorpay order', 500);
     }
@@ -86,7 +86,7 @@ class PaymentService {
   async verifyRazorpayPayment(paymentData) {
     console.log('--- Payment Verification Started ---');
     console.log('Received payment data from client:', paymentData);
-    
+
     const {
       razorpay_order_id,
       razorpay_payment_id,
@@ -114,11 +114,11 @@ class PaymentService {
 
       console.log('Server generated signature:', generatedSignature);
       console.log('Client received signature:', razorpay_signature);
-      
+
       if (generatedSignature !== razorpay_signature) {
         throw new AppError('Payment verification failed. Signature mismatch.', 400);
       }
-      
+
       console.log('✅ Razorpay payment signature verified successfully.');
 
       const transaction = await Order.sequelize.transaction();
@@ -145,7 +145,7 @@ class PaymentService {
           },
           { transaction }
         );
-        
+
         await transaction.commit();
 
         console.log('✅ Order and payment records updated successfully in the database.');
