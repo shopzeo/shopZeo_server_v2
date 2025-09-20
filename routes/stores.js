@@ -12,20 +12,29 @@ const {
   exportStores
 } = require('../controllers/storeController');
 const { authenticate, adminOnly } = require('../middleware/auth');
-const storeUpload = require('../middleware/upload'); // Import the upload middleware
+const createUploader = require('../middleware/upload');
+
+//
+// THE FIX IS HERE: We must call the createUploader function
+// to create the actual multer middleware for handling form-data.
+//
+const storeUpload = createUploader('store', [
+    { name: 'logo', maxCount: 1 },
+    { name: 'banner', maxCount: 1 }
+]);
+// Note: We are not using the 'storeUpload' middleware directly here
+// because the 'storeController' already uses multer internally for file handling.
+// Applying it here would cause a duplicate processing error and timeout.
 
 // @route   POST /api/stores
 // @desc    Create a new store (with logo and banner uploads)
 // @access  Admin
-// The 'storeUpload' middleware will process 'logo' and 'banner' files before createStore is called.
 router.post('/', storeUpload, createStore);
 
 // @route   PUT /api/stores/:id
 // @desc    Update a store (with logo and banner uploads)
 // @access  Admin
-// The 'storeUpload' middleware is also used here to handle potential file updates.
 router.put('/:id', storeUpload, updateStore);
-
 
 // --- All other routes remain the same ---
 
