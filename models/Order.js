@@ -1,6 +1,8 @@
 const { DataTypes, Sequelize } = require('sequelize');
 const { sequelize } = require('../config/database');
 const OrderItem = require('./OrderItem');
+const User = require('./User');
+
 const Order = sequelize.define('Order', {
   id: {
     type: DataTypes.CHAR(36), // Matching CHAR(36) from your DB
@@ -289,6 +291,5 @@ Order.getRevenueStats = function (startDate, endDate) {
 };
 
 Order.hasMany(OrderItem, { foreignKey: 'order_id', as: 'order_items' });
-
 
 module.exports = Order;

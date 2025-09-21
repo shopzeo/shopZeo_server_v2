@@ -138,44 +138,44 @@ const User = sequelize.define('User', {
 });
 
 // Instance methods
-User.prototype.comparePassword = async function(candidatePassword) {
+User.prototype.comparePassword = async function (candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
 
-User.prototype.getFullName = function() {
+User.prototype.getFullName = function () {
   return `${this.first_name} ${this.last_name}`;
 };
 
-User.prototype.isAdmin = function() {
+User.prototype.isAdmin = function () {
   return this.role === 'admin';
 };
 
-User.prototype.isVendor = function() {
+User.prototype.isVendor = function () {
   return this.role === 'vendor';
 };
 
-User.prototype.isCustomer = function() {
+User.prototype.isCustomer = function () {
   return this.role === 'customer';
 };
 
-User.prototype.isDelivery = function() {
+User.prototype.isDelivery = function () {
   return this.role === 'delivery';
 };
 
 // Class methods
-User.findByEmail = function(email) {
+User.findByEmail = function (email) {
   return this.findOne({ where: { email } });
 };
 
-User.findByPhone = function(phone) {
+User.findByPhone = function (phone) {
   return this.findOne({ where: { phone } });
 };
 
-User.findActiveUsers = function() {
+User.findActiveUsers = function () {
   return this.findAll({ where: { is_active: true } });
 };
 
-User.findByRole = function(role) {
+User.findByRole = function (role) {
   return this.findAll({ where: { role } });
 };
 

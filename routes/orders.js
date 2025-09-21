@@ -14,6 +14,10 @@ router.get('/', orderController.getMyOrders);
 //get listing of order
 router.get('/order-list', orderController.getOrderList);
 
+//get listing of order
+router.put('/:id', orderController.updateOrder);
+
+
 // GET /api/orders/:id - Get a single order by ID
 router.get('/:id', orderController.getOrderById);
 
