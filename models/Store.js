@@ -10,7 +10,7 @@ const Store = sequelize.define('Store', {
   name: {
     type: DataTypes.STRING(255),
     allowNull: false,
-   
+
     validate: {
       notEmpty: true,
       len: [2, 255]
@@ -78,7 +78,7 @@ const Store = sequelize.define('Store', {
       isGstValid(value) {
         // Allow null or empty strings
         if (!value) return;
-        
+
         // If a value is given, it must be 15 characters
         if (value.length !== 15) {
           throw new Error('GST Number must be 15 characters long.');
@@ -95,7 +95,7 @@ const Store = sequelize.define('Store', {
       max: 100
     }
   },
- pan_number: {
+  pan_number: {
     type: DataTypes.STRING(10),
     allowNull: false,
     validate: {
