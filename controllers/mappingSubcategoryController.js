@@ -76,7 +76,6 @@ exports.getSubCategoriesChildList = async (req, res) => {
 
 
 // Get single sub category by ID
-
 exports.getSubCategoryChildById = async (req, res) => {
     try {
         const { id } = req.params;
