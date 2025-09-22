@@ -462,4 +462,3 @@ exports.bulkUploadProducts = async (req, res) => {
     res.status(500).json({ success: false, message: 'Failed to process CSV upload', error: error.message });
   }
 };
-
