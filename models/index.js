@@ -40,6 +40,7 @@ const Settings = require('./Settings');
 const AuditLog = require('./AuditLog');
 const OtpVerification = require('./OtpVerification');
 
+
 module.exports = {
   sequelize,
   User,

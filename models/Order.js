@@ -1,5 +1,7 @@
 const { DataTypes, Sequelize } = require('sequelize');
 const { sequelize } = require('../config/database');
+const OrderItem = require('./OrderItem');
+const User = require('./User');
 
 const Order = sequelize.define('Order', {
   id: {
@@ -207,12 +209,12 @@ const Order = sequelize.define('Order', {
 // --- ALL YOUR EXISTING INSTANCE AND CLASS METHODS ARE PRESERVED UNCHANGED ---
 
 // Instance methods
-Order.prototype.calculateTotals = function() {
+Order.prototype.calculateTotals = function () {
   this.totalAmount = this.subtotal + this.taxAmount + this.shippingAmount - this.discountAmount;
   this.vendorAmount = this.totalAmount - this.commissionAmount;
   return this;
 };
-Order.prototype.canTransitionTo = function(newStatus) {
+Order.prototype.canTransitionTo = function (newStatus) {
   const validTransitions = {
     pending: ['confirmed', 'cancelled'],
     confirmed: ['packaging', 'cancelled'],
@@ -225,7 +227,7 @@ Order.prototype.canTransitionTo = function(newStatus) {
   };
   return validTransitions[this.status]?.includes(newStatus) || false;
 };
-Order.prototype.getStatusColor = function() {
+Order.prototype.getStatusColor = function () {
   const statusColors = {
     pending: 'yellow', confirmed: 'blue', packaging: 'purple',
     out_for_delivery: 'orange', delivered: 'green', returned: 'red',
@@ -233,7 +235,7 @@ Order.prototype.getStatusColor = function() {
   };
   return statusColors[this.status] || 'gray';
 };
-Order.prototype.getStatusLabel = function() {
+Order.prototype.getStatusLabel = function () {
   const statusLabels = {
     pending: 'Pending', confirmed: 'Confirmed', packaging: 'Packaging',
     out_for_delivery: 'Out for Delivery', delivered: 'Delivered',
@@ -241,37 +243,37 @@ Order.prototype.getStatusLabel = function() {
   };
   return statusLabels[this.status] || this.status;
 };
-Order.prototype.isEditable = function() {
+Order.prototype.isEditable = function () {
   return ['pending', 'confirmed', 'packaging'].includes(this.status);
 };
-Order.prototype.isCancellable = function() {
+Order.prototype.isCancellable = function () {
   return ['pending', 'confirmed', 'packaging'].includes(this.status);
 };
 
 // Class methods
-Order.findByOrderNumber = function(orderNumber) {
+Order.findByOrderNumber = function (orderNumber) {
   return this.findOne({ where: { orderNumber, isDeleted: false } });
 };
-Order.findByCustomer = function(customerId) {
+Order.findByCustomer = function (customerId) {
   return this.findAll({ where: { customerId, isDeleted: false }, order: [['createdAt', 'DESC']] });
 };
-Order.findByStore = function(storeId) {
+Order.findByStore = function (storeId) {
   return this.findAll({ where: { storeId, isDeleted: false }, order: [['createdAt', 'DESC']] });
 };
-Order.findByStatus = function(status) {
+Order.findByStatus = function (status) {
   return this.findAll({ where: { status, isDeleted: false }, order: [['createdAt', 'DESC']] });
 };
-Order.findByDeliveryMan = function(deliveryManId) {
+Order.findByDeliveryMan = function (deliveryManId) {
   return this.findAll({ where: { deliveryManId, isDeleted: false }, order: [['createdAt', 'DESC']] });
 };
-Order.getStatusCounts = function() {
+Order.getStatusCounts = function () {
   return this.findAll({
-    attributes: [ 'status', [sequelize.fn('COUNT', sequelize.col('id')), 'count'] ],
+    attributes: ['status', [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
     where: { isDeleted: false },
     group: ['status']
   });
 };
-Order.getRevenueStats = function(startDate, endDate) {
+Order.getRevenueStats = function (startDate, endDate) {
   return this.findAll({
     attributes: [
       [sequelize.fn('DATE', sequelize.col('createdAt')), 'date'],
@@ -287,5 +289,7 @@ Order.getRevenueStats = function(startDate, endDate) {
     order: [[sequelize.fn('DATE', sequelize.col('createdAt')), 'ASC']]
   });
 };
+
+Order.hasMany(OrderItem, { foreignKey: 'order_id', as: 'order_items' });
 
 module.exports = Order;

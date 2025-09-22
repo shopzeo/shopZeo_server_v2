@@ -23,7 +23,7 @@ const validateRequired = (value, fieldName) => {
 
 const generateSlug = async (name, transaction) => {
     if (!name) return `product-${Date.now()}`;
-    
+
     let baseSlug = name.toLowerCase()
         .replace(/[^a-z0-9\s-]/g, '')
         .replace(/\s+/g, '-')
@@ -46,12 +46,17 @@ const bulkImportProducts = async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ success: false, message: 'CSV file is required' });
     }
+    const { storeId } = req.body;
+
+    if (!storeId) {
+        return res.status(400).json({ success: false, message: 'Store ID is required in request' });
+    }
 
     const filePath = req.file.path;
     const results = { total: 0, success: 0, failed: 0, created: 0 };
     const failedRows = [];
     const transaction = await sequelize.transaction();
-
+    console.log(transaction, 'transaction');
     try {
         const csvData = await new Promise((resolve, reject) => {
             const rows = [];
@@ -69,14 +74,14 @@ const bulkImportProducts = async (req, res) => {
             try {
                 // --- Validations ---
                 const name = validateRequired(row['Name'], 'Name');
-                const storeId = validateRequired(row['Store ID'], 'Store ID');
+                // const storeId = validateRequired(row['Store ID'], 'Store ID');
                 const categoryId = validateRequired(row['Category ID'], 'Category ID');
                 const skuId = row['Sku Id'] || null;
 
                 // --- Foreign Key Checks ---
                 const store = await Store.findByPk(storeId, { transaction });
                 if (!store) throw new Error(`Store with ID "${storeId}" does not exist.`);
-                
+
                 const category = await Category.findByPk(categoryId, { transaction });
                 if (!category) throw new Error(`Category with ID "${categoryId}" does not exist.`);
 
@@ -95,7 +100,7 @@ const bulkImportProducts = async (req, res) => {
                     quantity: parseInt(row['Quantity']) || 0,
                     slug: await generateSlug(name, transaction), // Generate a unique slug
                     is_active: true,
-                    
+
                     // **FIX: ADDING ALL IMAGE AND VIDEO COLUMNS**
                     image_1: row['Image 1'] || null,
                     image_2: row['Image 2'] || null,
@@ -109,7 +114,7 @@ const bulkImportProducts = async (req, res) => {
                     image_10: row['Image 10'] || null,
                     video_1: row['Video 1'] || null,
                     video_2: row['Video 2'] || null,
-                    
+
                     // Adding other text-based fields
                     product_type: row['Product Type'] || null,
                     size: row['Size'] || null,
@@ -125,12 +130,12 @@ const bulkImportProducts = async (req, res) => {
 
             } catch (error) {
                 results.failed++;
-                
+
                 let errorMessage = error.message;
                 if (error instanceof Sequelize.ValidationError) {
                     errorMessage = error.errors.map(e => `${e.path}: ${e.message}`).join(', ');
                 }
-                
+
                 failedRows.push({
                     row_number: i + 2,
                     sku: row['Sku Id'] || 'N/A',
@@ -162,6 +167,6 @@ const bulkImportProducts = async (req, res) => {
 };
 
 module.exports = {
-  bulkImportProducts,
+    bulkImportProducts,
 };
 

@@ -87,8 +87,8 @@ exports.createOrder = async (req, res) => {
     } catch (error) {
         await t.rollback();
         console.error("CREATE ORDER ERROR:", error);
-        res.status(500).json({ 
-            success: false, 
+        res.status(500).json({
+            success: false,
             message: 'An internal server error occurred while creating the order.',
             error: error.message
         });
@@ -190,3 +190,139 @@ exports.cancelOrder = async (req, res) => {
         res.status(500).json({ success: false, message: error.message || 'Failed to cancel the order.' });
     }
 };
+
+exports.getOrderList = async (req, res) => {
+    try {
+        const { status } = req.query;
+
+        let whereClause = {};
+        if (status && status !== 'all') {
+            whereClause.status = status;
+        }
+
+        const orders = await db.Order.findAll({
+            where: whereClause,
+            include: [
+                {
+                    model: db.OrderItem,
+                    as: 'items',
+                    attributes: [
+                        'id',
+                        'product_id',
+                        'product_name',
+                        'quantity',
+                        'unit_price',
+                        'total_price',
+                        'store_id',
+                        'variant_id'
+                    ]
+                }, {
+                    model: db.Store,
+                    as: 'store',
+                    attributes: [
+                        'id',
+                        'name',
+                        'slug',
+                        'phone',
+                        'email',
+                        'address',
+                        'rating',
+                        'total_orders'
+                    ]
+                },
+                {
+                    model: db.User,
+                    as: 'customer',
+                    attributes: [
+                        'id',
+                        'email',
+                        'first_name',
+                        'last_name',
+                        'phone',
+                        'address',
+                    ]
+                }
+
+            ],
+            order: [['created_at', 'DESC']]
+        });
+
+        // Count orders by status
+        const statuses = [
+            'pending',
+            'confirmed',
+            'packaging',
+            'out_for_delivery',
+            'delivered',
+            'returned',
+            'failed',
+            'cancelled'
+        ];
+
+        const counts = {};
+        for (let s of statuses) {
+            counts[s] = await db.Order.count({ where: { status: s } });
+        }
+
+        return res.json({
+            status: 200,
+            success: true,
+            message: 'Orders fetched successfully',
+            data: orders,   // data is now a proper array
+            counts
+        });
+    } catch (error) {
+        console.error('Error fetching orders:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Server error',
+            stack: error.stack
+        });
+    }
+};
+
+exports.updateOrder = async (req, res) => {
+    try {
+        const { id } = req.params; // Order ID from URL
+        const {
+            status,
+            address,
+            notes,
+            tracking_number
+        } = req.body;
+
+        // Find order by ID
+        const order = await db.Order.findByPk(id);
+
+        if (!order) {
+            return res.status(404).json({
+                success: false,
+                message: "Order not found"
+            });
+        }
+
+        // Update allowed fields
+        if (status) order.status = status;
+        if (address) order.address = address;
+        if (notes) order.notes = notes;
+        if (tracking_number) order.tracking_number = tracking_number;
+
+        await order.save();
+
+        return res.json({
+            status: 200,
+            success: true,
+            message: "Order updated successfully",
+            data: order
+        });
+
+    } catch (error) {
+        console.error("Error updating order:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Server error",
+            stack: error.stack
+        });
+    }
+};
+
