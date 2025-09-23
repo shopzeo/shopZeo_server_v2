@@ -24,6 +24,13 @@ router.get('/:id', orderController.getOrderById);
 // PATCH /api/orders/:orderId/cancel - Cancel an order
 router.patch('/:orderId/cancel', orderController.cancelOrder);
 
+// Get all orders for a store
+// routes/orders.js
+router.get("/store/orders", orderController.getOrdersBySeller);
 
+router.patch("/:id/confirm", orderController.confirmOrder);
+// routes/orderRoutes.js
+router.get("/:id/invoice", orderController.generateInvoice);
 
+router.get("/:id/label", orderController.generateLabel);
 module.exports = router;

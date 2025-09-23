@@ -10,7 +10,7 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
 const session = require('express-session');
-const path = require('path');
+
 const config = require('./config/app');
 const { testConnection } = require('./config/database');
 
@@ -20,9 +20,13 @@ const setupAssociations = require('./models/associations');
 setupAssociations(models);
 
 // 4. Express ऐप को इनिशियलाइज़ करें
-const app = express();
-const PORT = config.PORT;
 
+const PORT = config.PORT;
+const path = require("path");
+const app = express();
+
+// Static folder serve karne ke liye
+app.use("/static", express.static(path.join(__dirname, "static")));
 // --- Middleware सेटअप ---
 
 // सुरक्षा के लिए Helmet
@@ -101,6 +105,7 @@ const orderRoutes = require('./routes/orders');
 const paymentRoutes = require('./routes/payments');
 const trackOrderRoutes = require('./routes/trackOrder');
 const MappingSubcategoryRoute = require('./routes/MappingSubcategoryRoute');
+const bulkImportRoutes = require("./routes/bulkImport");
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user-auth', userAuthRoutes);
@@ -117,6 +122,8 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/track', trackOrderRoutes);
 app.use('/api/subcategories-item', MappingSubcategoryRoute);
+app.use("/api/products", bulkImportRoutes);
+
 // Health Check रूट
 app.get('/health', (req, res) => {
   res.json({

@@ -38,6 +38,7 @@
     "mysql2": "^3.14.4",
     "node-fetch": "^3.3.2",
     "nodemailer": "^7.0.5",
+    "pdfkit": "^0.17.2",
     "razorpay": "^2.9.6",
     "sequelize": "^6.37.7",
     "svg-captcha": "^1.4.0",

@@ -43,8 +43,10 @@ const upload = multer({
 });
 
 // Bulk import routes
-router.post('/products/import-csv', upload.single('file'), bulkImportController.bulkImportProducts);
-router.get('/products/import-status', bulkImportController.getImportStatus);
-router.post('/products/download-failed', bulkImportController.downloadFailedRows);
+router.post(
+  "/import-csv",
+  upload.single("file"),
+  bulkImportController.bulkImportProducts
+);
 
 module.exports = router;
