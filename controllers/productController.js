@@ -192,7 +192,7 @@ exports.createProduct = async (req, res) => {
       });
     }
 
-    const requiredFields = ['product_code', 'sku_id', 'name', 'selling_price', 'quantity', 'store_id', 'category_id', 'sub_category_id', 'subcatagory_child_id'];
+    const requiredFields = ['product_code', 'sku_id', 'name', 'selling_price', 'quantity', 'store_id', 'category_id', 'sub_category_id', 'subcatagory_child_id', 'brand_id'];
     for (const field of requiredFields) {
       if (!productData[field]) {
         return res.status(400).json({ success: false, message: `Missing required field: ${field}` });
@@ -290,21 +290,43 @@ exports.deleteProduct = async (req, res) => {
 exports.getProductsByStore = async (req, res) => {
   try {
     const { store_id } = req.params;
-    const products = await Product.findAll({ where: { store_id: store_id } });
+
+    // page & limit from query params
+    let { page = 1, limit = 10 } = req.query;
+    page = parseInt(page);
+    limit = parseInt(limit);
+
+    const offset = (page - 1) * limit;
+
+    // get total + paginated products
+    const { count, rows: products } = await Product.findAndCountAll({
+      where: { store_id: store_id },
+      limit,
+      offset,
+      order: [['created_at', 'DESC']], // optional: sort by latest
+    });
+
     res.json({
       success: true,
       message: 'Store products retrieved successfully',
-      products: products
+      pagination: {
+        total: count,
+        page,
+        limit,
+        totalPages: Math.ceil(count / limit),
+      },
+      products,
     });
   } catch (error) {
     console.error('Get store products error:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to retrieve store products',
-      error: error.message
+      error: error.message,
     });
   }
 };
+
 
 // Toggle product status
 exports.toggleProductStatus = async (req, res) => {

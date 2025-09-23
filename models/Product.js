@@ -26,7 +26,7 @@ const Product = sequelize.define('Product', {
   },
   sku_id: {
     type: DataTypes.STRING(100),
-    allowNull: true, 
+    allowNull: true,
     unique: false,   // Allow duplicate SKUs as requested
     comment: 'Stock Keeping Unit'
   },
@@ -272,6 +272,15 @@ const Product = sequelize.define('Product', {
       model: 'sub_categories',
       key: 'id'
     }
+  },
+  subcatagory_child_id: {
+    type: DataTypes.STRING,   // VARCHAR equivalent
+    allowNull: true,          // can be null
+  },
+
+  brand_id: {
+    type: DataTypes.STRING,   // VARCHAR equivalent
+    allowNull: true,          // can be null
   },
   // SEO fields
   meta_title: {
