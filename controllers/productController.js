@@ -4,7 +4,7 @@ const Store = require('../models/Store');
 const Category = require('../models/Category');
 const SubCategory = require('../models/SubCategory');
 const ProductMedia = require('../models/ProductMedia');
-
+const Brand = require('../models/Brand');
 
 exports.getProducts = async (req, res) => {
   try {
@@ -30,8 +30,8 @@ exports.getProducts = async (req, res) => {
     if (search) conditions.push({ name: { [Op.like]: `%${search}%` } });
 
     // store / brand
-    if (brand_slug) {
-      const store = await Store.findOne({ where: { slug: brand_slug }, attributes: ['id'] });
+    if (store_id) {
+      const store = await Store.findOne({ where: { slug: store_id }, attributes: ['id'] });
       if (!store) {
         return res.json({ success: true, message: 'No products found for this store', products: [], pagination: { page: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 } });
       }
@@ -39,6 +39,30 @@ exports.getProducts = async (req, res) => {
     } else if (store_id) {
       conditions.push({ store_id });
     }
+
+    if (brand_slug) {   // <-- filter by brand slug
+      const brand = await Brand.findOne({
+        where: { slug: brand_slug },
+        attributes: ['id']
+      });
+
+      if (!brand) {
+        return res.json({
+          success: true,
+          message: 'No products found for this brand',
+          products: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0
+          }
+        });
+      }
+
+      conditions.push({ brand_id: brand.id });
+    }
+
 
     // category_slug 
     if (slug) {
