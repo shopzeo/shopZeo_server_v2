@@ -1,6 +1,9 @@
 const db = require('../models');
 const { v4: uuidv4 } = require('uuid');
-
+const { Order, Product, Store, User, OrderItem } = require("../models");
+const path = require("path");
+const PDFDocument = require("pdfkit");
+const { sequelize } = require("../config/database");
 /**
  * Creates new orders based on a multi-vendor cart.
  */
@@ -326,3 +329,251 @@ exports.updateOrder = async (req, res) => {
     }
 };
 
+//new controller to to show all orders
+
+
+exports.getOrdersBySeller = async (req, res) => {
+  try {
+    const { email } = req.user; // token se seller email aa raha hai
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Seller email is required",
+      });
+    }
+
+    // Step 1: Seller ka store_id nikaalo
+    const store = await Store.findOne({ where: { email } });
+
+    if (!store) {
+      return res.status(404).json({
+        success: false,
+        message: "No store found for this seller",
+      });
+    }
+
+    // Step 2: Orders fetch karo is store ke
+    const orders = await Order.findAll({
+      where: { storeId: store.id }, // ✅ camelCase field use kar (jo model me hai)
+      include: [
+        {
+          model: db.OrderItem,
+          as: "items",
+          include: [
+            {
+              model: db.Product,
+              as: "product",
+              attributes: ["id", "name", "image_1", "selling_price"],
+            },
+          ],
+          attributes: ["id", "quantity", "unitPrice", "totalPrice"], // ✅ order_items ke fields
+        },
+      ],
+      attributes: [
+        "id",
+        "orderNumber",
+        "customerId",
+        "paymentMethod",
+        "status",
+        "createdAt",
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    if (!orders || orders.length === 0) {
+      return res.json({ success: true, orders: [] });
+    }
+
+    // Step 3: Response bhejo
+    res.json({
+      success: true,
+      storeId: store.id,
+      orders,
+    });
+  } catch (error) {
+    console.error("Error fetching seller orders:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch orders",
+      error: error.message,
+    });
+  }
+};
+
+// PATCH /api/orders/:id/confirm
+exports.confirmOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const order = await Order.findByPk(id);
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    order.status = "Confirmed"; // update status
+    await order.save();
+
+    res.json({ success: true, message: "Order confirmed successfully", order });
+  } catch (error) {
+    console.error("Error confirming order:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+};
+
+exports.generateInvoice = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    if (!orderId) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Order ID required" });
+    }
+
+    // 👉 Yahan wahi query use karte hain jo getOrdersBySeller me hai
+    const order = await Order.findOne({
+      where: { id: orderId },
+      include: [
+        {
+          model: db.OrderItem,
+          as: "items",
+          include: [
+            {
+              model: db.Product,
+              as: "product",
+              attributes: ["id", "name", "image_1", "selling_price"],
+            },
+          ],
+          attributes: ["id", "quantity", "unitPrice", "totalPrice"],
+        },
+        { model: Store, as: "store" },
+        { model: User, as: "customer" },
+      ],
+    });
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+    }
+
+    // ✅ Ab PDF banao
+    const doc = new PDFDocument({ margin: 30 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=invoice-${orderId}.pdf`
+    );
+    doc.pipe(res);
+
+    // Shopzeo Branding
+    doc.fontSize(20).text("Shopzeo Invoice", { align: "center" });
+    doc.moveDown();
+
+    // Store Info
+    doc.fontSize(12).text(`Store: ${order.store?.name || "-"}`);
+    doc.text(`Store Email: ${order.store?.email || "-"}`);
+    doc.text(`Store Address: ${order.store?.address || "-"}`);
+    doc.moveDown();
+
+    // Customer Info
+    doc.text(
+      `Customer: ${order.customer?.first_name} ${order.customer?.last_name}`
+    );
+    doc.text(`Email: ${order.customer?.email}`);
+    doc.text(`Phone: ${order.customer?.phone || "-"}`);
+    doc.moveDown();
+
+    // Order Info
+    doc.text(`Order Number: ${order.orderNumber}`);
+    doc.text(`Order Date: ${order.createdAt.toDateString()}`);
+    doc.text(`Payment Method: ${order.paymentMethod}`);
+    doc.text(`Status: ${order.status}`);
+    doc.moveDown();
+
+    // Items Table
+    doc.fontSize(14).text("Products:", { underline: true });
+    order.items.forEach((item, idx) => {
+      doc
+        .fontSize(12)
+        .text(
+          `${idx + 1}. ${item.product?.name} (x${item.quantity}) - ₹${
+            item.totalPrice
+          }`
+        );
+    });
+
+    // Total
+    const total = order.items.reduce(
+      (sum, i) => sum + parseFloat(i.totalPrice),
+      0
+    );
+    doc.moveDown();
+    doc.fontSize(14).text(`Total Amount: ₹${total}`, { align: "right" });
+
+    doc.end();
+  } catch (err) {
+    console.error("Invoice Error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to generate invoice",
+      error: err.message,
+    });
+  }
+};
+
+exports.generateLabel = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const order = await Order.findByPk(id, {
+      include: [
+        { model: Store, as: "store" },
+        { model: User, as: "customer" },
+      ],
+    });
+
+    if (!order) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Order not found" });
+    }
+
+    // Create PDF
+    const doc = new PDFDocument({ margin: 30 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename=label-${id}.pdf`
+    );
+    doc.pipe(res);
+
+    // Shopzeo Branding
+    doc.fontSize(18).text("Shopzeo Shipping Label", { align: "center" });
+    doc.moveDown();
+
+    // Store Info
+    doc.fontSize(12).text(`From: ${order.store?.name}`);
+    doc.text(`Address: ${order.store?.address || "-"}`);
+    doc.moveDown();
+
+    // Customer Info
+    doc
+      .fontSize(12)
+      .text(`To: ${order.customer?.first_name} ${order.customer?.last_name}`);
+    doc.text(`Address: ${order.shippingAddress?.addressLine1 || "-"}`);
+    doc.text(`Phone: ${order.customer?.phone || "-"}`);
+    doc.moveDown();
+
+    // Order Info
+    doc.text(`Order Number: ${order.orderNumber}`);
+    doc.text(`Payment: ${order.paymentMethod}`);
+    doc.text(`Status: ${order.status}`);
+
+    doc.end();
+  } catch (err) {
+    console.error("Label Error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to generate label" });
+  }
+};
