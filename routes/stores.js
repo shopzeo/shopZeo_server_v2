@@ -9,8 +9,9 @@ const {
   toggleStoreStatus,
   toggleStoreVerification,
   updateVendorPassword,
-  exportStores
-} = require('../controllers/storeController');
+  exportStores,
+  getStoreByOwnerId,
+} = require("../controllers/storeController");
 const { authenticate, adminOnly } = require('../middleware/auth');
 const createUploader = require('../middleware/upload');
 
@@ -58,5 +59,6 @@ router.patch('/:id/update-password', updateVendorPassword);
 
 // Export stores to CSV (admin only)
 router.get('/export/csv', exportStores);
+router.get('/owner/:owner_id', getStoreByOwnerId);
 
 module.exports = router;
