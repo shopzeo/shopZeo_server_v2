@@ -4,6 +4,9 @@ const Store = require('../models/Store');
 const Category = require('../models/Category');
 const SubCategory = require('../models/SubCategory');
 const ProductMedia = require('../models/ProductMedia');
+const Brand = require('../models/Brand');
+const SubcategoryChild = require('../models/SubcategoryChild');
+const { Sequelize } = require('sequelize'); // CommonJS
 
 
 exports.getProducts = async (req, res) => {
@@ -12,7 +15,7 @@ exports.getProducts = async (req, res) => {
       page = 1,
       limit = 50,
       search = '',
-      store_id = '',
+      store_slug = '',
       brand_slug = '',
       category_slug = '',
       min_price = '',
@@ -30,15 +33,37 @@ exports.getProducts = async (req, res) => {
     if (search) conditions.push({ name: { [Op.like]: `%${search}%` } });
 
     // store / brand
-    if (brand_slug) {
-      const store = await Store.findOne({ where: { slug: brand_slug }, attributes: ['id'] });
+    if (store_slug) {
+      const store = await Store.findOne({ where: { slug: store_slug }, attributes: ['id'] });
       if (!store) {
         return res.json({ success: true, message: 'No products found for this store', products: [], pagination: { page: parseInt(page), limit: parseInt(limit), total: 0, pages: 0 } });
       }
       conditions.push({ store_id: store.id });
-    } else if (store_id) {
-      conditions.push({ store_id });
     }
+
+    if (brand_slug) {   // <-- filter by brand slug
+      const brand = await Brand.findOne({
+        where: { slug: brand_slug },
+        attributes: ['id']
+      });
+
+      if (!brand) {
+        return res.json({
+          success: true,
+          message: 'No products found for this brand',
+          products: [],
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: 0,
+            pages: 0
+          }
+        });
+      }
+
+      conditions.push({ brand_id: brand.id });
+    }
+
 
     // category_slug 
     if (slug) {
@@ -94,13 +119,13 @@ exports.getProducts = async (req, res) => {
     const whereClause = conditions.length ? { [Op.and]: conditions } : {};
 
     const offset = (parseInt(page) - 1) * parseInt(limit);
-
+    // A SubCategory can have many SubcategoryChild
     const { count, rows: products } = await Product.findAndCountAll({
       where: whereClause,
       limit: parseInt(limit),
       offset,
       order: [
-        ['created_at', 'DESC'],
+        Sequelize.literal('RAND()'),
         [{ model: ProductMedia, as: 'productMedia' }, 'media_order', 'ASC']
       ],
       include: [
@@ -112,9 +137,16 @@ exports.getProducts = async (req, res) => {
           attributes: ['id', 'name', 'slug'],
           required: false,
           include: [
-            { model: Category, as: 'category', attributes: ['id', 'name', 'slug'], required: false }
-          ]
+            { model: Category, as: 'category', attributes: ['id', 'name', 'slug'], required: false },
+            // {
+            //   model: SubcategoryChild,
+            //   as: 'children', // or whatever alias you defined in association
+            //   attributes: ['id', 'subcategories_name', 'subcategories_slug'],
+            //   required: false,
+            // }
+          ],
         },
+
         {
           model: ProductMedia,
           as: 'productMedia',
@@ -124,16 +156,33 @@ exports.getProducts = async (req, res) => {
       ],
       distinct: true
     });
+    // Step 2: Fetch all subcategory children for these products
+    const subCategoryIds = products
+      .map(p => p.subCategory?.id)
+      .filter(id => id != null);
+    const subCategoryChildren = await SubcategoryChild.findAll({
+      where: { sub_categories_id: subCategoryIds },
+      attributes: ['id', 'subcategories_name', 'subcategories_slug', 'sub_categories_id']
+    });
 
+    // Step 3: Map products and attach children at top level
     const mappedProducts = products.map(p => {
       const data = p.toJSON();
 
+      // Unified category: prefer subCategory.category if exists, else product.category
       const unifiedCategory = data.subCategory?.category || data.category || null;
 
+      // Map subCategory data
       const subCategory = data.subCategory
         ? { id: data.subCategory.id, name: data.subCategory.name, slug: data.subCategory.slug }
         : null;
-      return { ...data, category: unifiedCategory, subCategory };
+
+      // Attach children at top level
+      const children = subCategory
+        ? subCategoryChildren.filter(child => child.sub_categories_id === subCategory.id)
+        : [];
+
+      return { ...data, category: unifiedCategory, subCategory, children };
     });
 
     return res.json({
@@ -149,7 +198,7 @@ exports.getProducts = async (req, res) => {
     });
   } catch (err) {
     console.error('ERROR getProducts:', err);
-    return res.status(500).json({ success: false, message: 'Failed to retrieve products', error: err.message });
+    return res.status(500).json({ success: false, message: 'Failed to retrieve products', error: err.message, stack: err.stack });
   }
 };
 
@@ -192,7 +241,7 @@ exports.createProduct = async (req, res) => {
       });
     }
 
-    const requiredFields = ['product_code', 'sku_id', 'name', 'selling_price', 'quantity', 'store_id', 'category_id', 'sub_category_id', 'subcatagory_child_id', 'brand_id'];
+    const requiredFields = ['product_code', 'sku_id', 'name', 'selling_price', 'quantity', 'store_id', 'category_id', 'sub_category_id', 'brand_id'];
     for (const field of requiredFields) {
       if (!productData[field]) {
         return res.status(400).json({ success: false, message: `Missing required field: ${field}` });
@@ -206,7 +255,9 @@ exports.createProduct = async (req, res) => {
 
     productData.is_active = productData.is_active !== undefined ? productData.is_active : true;
     productData.is_featured = productData.is_featured !== undefined ? productData.is_featured : false;
-
+    if (productData.mapped_nested_subcategory?.length > 0) {
+      productData.mapped_nested_subcategory = productData.mapped_nested_subcategory;
+    }
     const product = await Product.create(productData);
 
     const createdProduct = await Product.findByPk(product.id, {
@@ -249,7 +300,9 @@ exports.updateProduct = async (req, res) => {
         return res.status(400).json({ success: false, message: `Missing required field: ${field}` });
       }
     }
-
+    if (productData.mapped_nested_subcategory?.length > 0) {
+      productData.mapped_nested_subcategory = productData.mapped_nested_subcategory;
+    }
     await existingProduct.update(productData);
 
     const updatedProduct = await Product.findByPk(id, {

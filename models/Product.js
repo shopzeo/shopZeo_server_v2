@@ -282,6 +282,10 @@ const Product = sequelize.define('Product', {
     type: DataTypes.STRING,   // VARCHAR equivalent
     allowNull: true,          // can be null
   },
+  mapped_nested_subcategory: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+  },
   // SEO fields
   meta_title: {
     type: DataTypes.STRING(255),
