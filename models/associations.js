@@ -4,7 +4,7 @@ const setupAssociations = (models) => {
     ProductVariant, ProductCategory, ProductBrand, ProductAttribute, ProductMedia,
     Stock, Media, Order, OrderItem, Address, Shipment, Payment, RefundRequest,
     Wallet, Transaction, Ticket, Message, Banner, Coupon, Offer, Announcement,
-    Notification, Page, BlogPost, Review, Like, Subscriber, Settings, AuditLog
+    Notification, Page, BlogPost, Review, Like, Subscriber, Settings, AuditLog, SubcategoriesChild
   } = models;
 
   // --- ALL YOUR EXISTING ASSOCIATIONS ARE PRESERVED BELOW ---
@@ -50,13 +50,16 @@ const setupAssociations = (models) => {
   Category.belongsToMany(Product, { through: ProductCategory, as: 'products' });
   Category.hasMany(SubCategory, { as: 'subCategories', foreignKey: 'category_id' }); // Corrected foreign key from DB schema
   Category.hasMany(Product, { foreignKey: 'category_id', as: 'categoryProducts' });
-  
+
   SubCategory.belongsTo(Category, { as: 'category', foreignKey: 'category_id' });
   SubCategory.hasMany(Product, { foreignKey: 'sub_category_id', as: 'subCategoryProducts' });
+  // // SubCategory ↔ SubcategoryChild
+  // SubCategory.hasMany(SubcategoriesChild, { as: 'children', foreignKey: 'sub_category_id' });
+  // SubcategoriesChild.belongsTo(SubCategory, { as: 'parentSubCategory', foreignKey: 'sub_category_id' });
 
   Brand.hasMany(ProductBrand, { foreignKey: 'brandId', as: 'productBrands' });
   Brand.belongsToMany(Product, { through: ProductBrand, as: 'brandProducts' });
-  
+
   // (All other existing associations are preserved...)
   Attribute.hasMany(AttributeValue, { foreignKey: 'attributeId', as: 'values' });
   Attribute.hasMany(ProductAttribute, { foreignKey: 'attributeId', as: 'productAttributes' });
@@ -79,7 +82,7 @@ const setupAssociations = (models) => {
 
   // --- NEWLY ADDED & CORRECTED ORDER ASSOCIATIONS ---
   // Using foreign keys from your shopzeo_db.sql file
-  
+
   Order.belongsTo(User, { foreignKey: 'customer_id', as: 'customer' });
   User.hasMany(Order, { foreignKey: 'customer_id' });
 
@@ -91,7 +94,7 @@ const setupAssociations = (models) => {
 
   Order.hasMany(OrderItem, { foreignKey: 'order_id', as: 'items' }); // This alias is critical for the controller
   OrderItem.belongsTo(Order, { foreignKey: 'order_id' });
-  
+
   Order.hasMany(Shipment, { foreignKey: 'orderId', as: 'shipments' });
   OrderItem.belongsTo(Product, { foreignKey: 'product_id', as: 'product' });
   Product.hasMany(OrderItem, { foreignKey: 'product_id' });
@@ -133,6 +136,7 @@ const setupAssociations = (models) => {
   Like.belongsTo(User, { foreignKey: 'userId', as: 'user' });
   Settings.belongsTo(User, { foreignKey: 'updatedBy', as: 'updater' });
   AuditLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
+
 };
 
 module.exports = setupAssociations;

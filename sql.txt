@@ -5,3 +5,4 @@ CREATE TABLE `shopzeo_db`.`subcategories_child` ( `id` INT(11) NOT NULL AUTO_INC
 ALTER TABLE `products` ADD `subcatagory_child_id` INT(20) NULL DEFAULT NULL AFTER `sub_category_id`;
 
 ALTER TABLE `products` ADD `brand_id` VARCHAR(200) NULL AFTER `subcatagory_child_id`;
+ALTER TABLE `products` ADD `mapped_nested_subcategory` TEXT NULL DEFAULT NULL AFTER `brand_id`;
