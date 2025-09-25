@@ -387,14 +387,47 @@ const exportStores = async (req, res) => {
     }
 };
 
+// Get store by owner_id
+const getStoreByOwnerId = async (req, res) => {
+    try {
+        const { owner_id } = req.params;
+
+        if (!owner_id) {
+            return res.status(400).json({ success: false, message: 'Owner ID is required.' });
+        }
+
+        const store = await Store.findOne({
+            where: { owner_id },
+            include: [{ model: User, as: 'owner' }]
+        });
+
+        if (!store) {
+            return res.status(404).json({ success: false, message: 'Store not found for this owner.' });
+        }
+
+        const storeJson = store.toJSON();
+        const responseStore = {
+            ...storeJson,
+            logo: constructFileUrl(req, storeJson.logo),
+            banner: constructFileUrl(req, storeJson.banner),
+        };
+
+        res.json({ success: true, data: responseStore });
+    } catch (error) {
+        console.error('Get store by owner_id error:', error);
+        res.status(500).json({ success: false, message: 'Failed to fetch store', error: error.message });
+    }
+};
+
 module.exports = {
-    createStore,
-    getAllStores,
-    getStoreById,
-    updateStore,
-    deleteStore,
-    toggleStoreStatus,
-    toggleStoreVerification,
-    updateVendorPassword,
-    exportStores
+  createStore,
+  getAllStores,
+  getStoreById,
+  updateStore,
+  deleteStore,
+  toggleStoreStatus,
+  toggleStoreVerification,
+  updateVendorPassword,
+  exportStores,
+  getStoreByOwnerId,
 };
