@@ -40,6 +40,7 @@ const Subscriber = require("./Subscriber");
 const Settings = require("./Settings");
 const AuditLog = require("./AuditLog");
 const OtpVerification = require("./OtpVerification");
+const WithdrawHistory = require("./withdrawHistory");
 
 // Associations define karo
 
@@ -93,4 +94,5 @@ module.exports = {
   Settings,
   AuditLog,
   OtpVerification,
+  WithdrawHistory,
 };
