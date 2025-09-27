@@ -41,7 +41,7 @@ const Settings = require("./Settings");
 const AuditLog = require("./AuditLog");
 const OtpVerification = require("./OtpVerification");
 
-const WithdrawHistory = require("./withdrawHistory");
+const WithdrawHistory = require("./WithdrawHistory");
 
 const SubcategoryChild = require('./SubcategoryChild');
 
