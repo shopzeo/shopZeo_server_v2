@@ -6,7 +6,7 @@ import {
   OrderItem,
   WithdrawHistory,
 } from "../models/index.js";
-
+import { Op } from "sequelize";
 export const vendorWallet = async (req, res) => {
   try {
     const vendorId = req.user.id;
@@ -146,7 +146,12 @@ export const pendingOrders = async (req, res) => {
 
     // Fetch orders with pending status
     const orders = await Order.findAll({
-      where: { status: "pending" }, // 👈 only difference
+      where: {
+        store_id: store.id,
+        status: {
+          [Op.in]: ["pending", "confirmed", "packaging", "out_for_delivery"],
+        },
+      }, // 👈 only difference
       include: [
         {
           model: OrderItem,
