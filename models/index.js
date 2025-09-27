@@ -40,7 +40,12 @@ const Subscriber = require("./Subscriber");
 const Settings = require("./Settings");
 const AuditLog = require("./AuditLog");
 const OtpVerification = require("./OtpVerification");
+
 const WithdrawHistory = require("./withdrawHistory");
+
+const SubcategoryChild = require('./SubcategoryChild');
+
+
 
 // Associations define karo
 
@@ -94,5 +99,30 @@ module.exports = {
   Settings,
   AuditLog,
   OtpVerification,
+
   WithdrawHistory,
+
+  SubcategoryChild,
+
 };
+
+// // SubCategory -> SubcategoryChild
+// SubCategory.hasMany(SubcategoryChild, { as: 'children', foreignKey: 'sub_categories_id' });
+// SubcategoryChild.belongsTo(SubCategory, { as: 'parentSubCategory', foreignKey: 'sub_category_id' });
+
+// // Product -> SubCategory
+// Product.belongsTo(SubCategory, { as: 'ProductsubCategory', foreignKey: 'sub_category_id' });
+// SubCategory.hasMany(Product, { as: 'products', foreignKey: 'sub_category_id' });
+
+// SubCategory -> SubcategoryChild
+// SubCategory.hasMany(SubcategoryChild, {
+//   as: 'children',          // alias for easy include
+//   foreignKey: 'sub_category_id' // make sure this matches the actual column name in SubcategoryChild table
+// });
+
+// SubcategoryChild.belongsTo(SubCategory, {
+//   as: 'parentSubCategory',
+//   foreignKey: 'sub_category_id'
+// })
+
+

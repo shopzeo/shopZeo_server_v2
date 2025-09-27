@@ -5,8 +5,8 @@ const { AppError } = require('../middleware/errorHandler');
 
 class PaymentService {
   constructor() {
-    const keyId = "process.env.RAZORPAY_KEY_ID";
-    const keySecret = "process.env.RAZORPAY_KEY_SECRET";
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
     if (!keyId || !keySecret) {
       console.error('❌ Razorpay API keys are not set in the environment variables.');
