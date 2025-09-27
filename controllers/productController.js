@@ -25,6 +25,7 @@ exports.getProducts = async (req, res) => {
       max_price = "",
       is_active = "",
       is_featured = "",
+      store_slug="",
 
     } = req.query;
 
