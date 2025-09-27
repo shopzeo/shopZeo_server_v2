@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    h2 { text-align: center; margin-bottom: 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    th { background: #f2f2f2; }
+    .section { margin: 15px 0; }
+    .right { text-align: right; }
+  </style>
+</head>
+<body>
+  <h2>Tax Invoice (Original for Recipient)</h2>
+
+  <div class="section">
+    <b>Invoice No:</b> {{invoiceNo}}<br/>
+    <b>Invoice Date:</b> {{invoiceDate}}
+  </div>
+
+  <div class="section">
+    <h3>Sold By:</h3>
+    {{store.name}}<br/>
+    {{store.address}}<br/>
+    Ph No: {{store.phone}}<br/>
+    GSTIN: {{store.gstin}} | PAN: {{store.pan}}
+  </div>
+
+  <div class="section">
+    <h3>Bill To:</h3>
+    {{customer.name}}<br/>
+    {{customer.address}}<br/>
+    Mobile: {{customer.mobile}}<br/>
+    Place of Supply: {{customer.state}}
+  </div>
+
+  <div class="section">
+    <b>Delivery Partner:</b> {{deliveryPartner}}<br/>
+    <b>AWB:</b> {{awb}}<br/>
+    <b>Order ID:</b> {{orderId}}<br/>
+    <b>Order Via:</b> {{orderVia}}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Sr.No</th>
+        <th>Product</th>
+        <th>Unit Price</th>
+        <th>Qty</th>
+        <th>Discount</th>
+        <th>Amount</th>
+        <th>Taxes</th>
+        <th>Total</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{#each items}}
+      <tr>
+        <td>{{srNo}}</td>
+        <td>{{name}}</td>
+        <td>{{unitPrice}}</td>
+        <td>{{qty}}</td>
+        <td>{{discount}}</td>
+        <td>{{amount}}</td>
+        <td>{{tax}}</td>
+        <td>{{total}}</td>
+      </tr>
+      {{/each}}
+    </tbody>
+  </table>
+
+  <div class="section right">
+    <p><b>Subtotal:</b> ₹{{subtotal}}</p>
+    <p><b>Taxes:</b> ₹{{taxAmount}}</p>
+    <h3>Grand Total: ₹{{grandTotal}}</h3>
+  </div>
+</body>
+</html>

@@ -4,6 +4,10 @@ const { Order, Product, Store, User, OrderItem } = require("../models");
 const path = require("path");
 const PDFDocument = require("pdfkit");
 const { sequelize } = require("../config/database");
+const fs = require("fs");
+const puppeteer = require("puppeteer");
+const Handlebars = require("handlebars");
+const axios = require("axios");
 /**
  * Creates new orders based on a multi-vendor cart.
  */
@@ -421,30 +425,20 @@ exports.confirmOrder = async (req, res) => {
   }
 };
 
+
+
+// ===================== GENERATE INVOICE =====================
 exports.generateInvoice = async (req, res) => {
   try {
-    const { orderId } = req.params;
-    if (!orderId) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Order ID required" });
-    }
+    const { id } = req.params;
 
-    // 👉 Yahan wahi query use karte hain jo getOrdersBySeller me hai
     const order = await Order.findOne({
-      where: { id: orderId },
+      where: { id },
       include: [
         {
-          model: db.OrderItem,
+          model: OrderItem,
           as: "items",
-          include: [
-            {
-              model: db.Product,
-              as: "product",
-              attributes: ["id", "name", "image_1", "selling_price"],
-            },
-          ],
-          attributes: ["id", "quantity", "unitPrice", "totalPrice"],
+          include: [{ model: Product, as: "product" }],
         },
         { model: Store, as: "store" },
         { model: User, as: "customer" },
@@ -457,123 +451,212 @@ exports.generateInvoice = async (req, res) => {
         .json({ success: false, message: "Order not found" });
     }
 
-    // ✅ Ab PDF banao
-    const doc = new PDFDocument({ margin: 30 });
+    // Load invoice HTML template
+    const templatePath = path.join(__dirname, "../templates/invoice.html");
+    const templateHtml = fs.readFileSync(templatePath, "utf8");
+    const template = Handlebars.compile(templateHtml);
+
+    // Prepare data
+    const data = {
+      invoiceNo: order.orderNumber || "-",
+      invoiceDate: order.createdAt
+        ? new Date(order.createdAt).toLocaleDateString()
+        : "-",
+      store: {
+        name: order.store?.name || "-",
+        address: order.store?.address || "-",
+        phone: order.store?.phone || "-",
+        gstin: order.store?.gstin || "-",
+        pan: order.store?.pan || "-",
+      },
+      customer: {
+        name: `${order.customer?.first_name || ""} ${
+          order.customer?.last_name || ""
+        }`,
+        address: order.shippingAddress?.addressLine1 || "-",
+        mobile: order.customer?.phone || "-",
+        state: order.shippingAddress?.state || "-",
+      },
+      deliveryPartner: order.deliveryPartner || "Delhivery",
+      awb: order.awbNumber || "-",
+      orderId: order.id,
+      orderVia: order.store?.name || "-",
+      items: order.items.map((i, idx) => ({
+        srNo: idx + 1,
+        name: i.product?.name || "-",
+        unitPrice: i.unitPrice || 0,
+        qty: i.quantity || 0,
+        discount: i.discountAmount || 0,
+        amount: (i.unitPrice || 0) * (i.quantity || 0),
+        tax: i.taxAmount || 0,
+        total: i.totalPrice || 0,
+      })),
+      subtotal: order.subtotal || 0,
+      taxAmount: order.taxAmount || 0,
+      grandTotal: order.totalAmount || 0,
+    };
+
+    const html = template(data);
+
+    // Generate PDF
+    const browser = await puppeteer.launch({ headless: "new" });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    const pdfBuffer = await page.pdf({ format: "A4", printBackground: true });
+    await browser.close();
+
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename=invoice-${orderId}.pdf`
+      `attachment; filename=invoice-${id}.pdf`
     );
-    doc.pipe(res);
-
-    // Shopzeo Branding
-    doc.fontSize(20).text("Shopzeo Invoice", { align: "center" });
-    doc.moveDown();
-
-    // Store Info
-    doc.fontSize(12).text(`Store: ${order.store?.name || "-"}`);
-    doc.text(`Store Email: ${order.store?.email || "-"}`);
-    doc.text(`Store Address: ${order.store?.address || "-"}`);
-    doc.moveDown();
-
-    // Customer Info
-    doc.text(
-      `Customer: ${order.customer?.first_name} ${order.customer?.last_name}`
-    );
-    doc.text(`Email: ${order.customer?.email}`);
-    doc.text(`Phone: ${order.customer?.phone || "-"}`);
-    doc.moveDown();
-
-    // Order Info
-    doc.text(`Order Number: ${order.orderNumber}`);
-    doc.text(`Order Date: ${order.createdAt.toDateString()}`);
-    doc.text(`Payment Method: ${order.paymentMethod}`);
-    doc.text(`Status: ${order.status}`);
-    doc.moveDown();
-
-    // Items Table
-    doc.fontSize(14).text("Products:", { underline: true });
-    order.items.forEach((item, idx) => {
-      doc
-        .fontSize(12)
-        .text(
-          `${idx + 1}. ${item.product?.name} (x${item.quantity}) - ₹${
-            item.totalPrice
-          }`
-        );
-    });
-
-    // Total
-    const total = order.items.reduce(
-      (sum, i) => sum + parseFloat(i.totalPrice),
-      0
-    );
-    doc.moveDown();
-    doc.fontSize(14).text(`Total Amount: ₹${total}`, { align: "right" });
-
-    doc.end();
+    res.end(pdfBuffer);
   } catch (err) {
     console.error("Invoice Error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Failed to generate invoice",
-      error: err.message,
-    });
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to generate invoice" });
   }
 };
 
+
+
+async function getBase64ImageFromUrl(url) {
+  const response = await axios.get(url, { responseType: "arraybuffer" });
+  const base64 = Buffer.from(response.data, "binary").toString("base64");
+  const mimeType = response.headers["content-type"];
+  return `data:${mimeType};base64,${base64}`;
+}
+
+
+// ===================== GENERATE LABEL =====================
+// Generate Label
 exports.generateLabel = async (req, res) => {
   try {
     const { id } = req.params;
-    const order = await Order.findByPk(id, {
+
+    // 1️⃣ Fetch order with items
+    const order = await Order.findOne({
+      where: { id },
       include: [
         { model: Store, as: "store" },
         { model: User, as: "customer" },
+        { model: OrderItem, as: "items" },
       ],
     });
 
-    if (!order) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Order not found" });
+    if (!order) return res.status(404).send("Order not found");
+
+    // 2️⃣ Fetch products related to the order
+    const productIds = order.items.map((i) => i.productId);
+    const products = await Product.findAll({ where: { id: productIds } });
+
+    const productMap = {};
+    products.forEach((p) => (productMap[p.id] = p));
+
+    // 3️⃣ Parse shippingAddress
+    const shipping = order.shippingAddress
+      ? JSON.parse(order.shippingAddress)
+      : {};
+
+    // 4️⃣ Calculate total dimensions & weight
+    let totalWeight = 0;
+    let dimensions = { length: 0, breadth: 0, height: 0 };
+
+    order.items.forEach((item) => {
+      const prod = productMap[item.productId];
+      if (prod) {
+        const qty = item.quantity || 1;
+        totalWeight += parseFloat(prod.packaging_weight || 0) * qty;
+        dimensions.length = Math.max(
+          dimensions.length,
+          parseFloat(prod.packaging_length || 0)
+        );
+        dimensions.breadth = Math.max(
+          dimensions.breadth,
+          parseFloat(prod.packaging_breadth || 0)
+        );
+        dimensions.height += parseFloat(prod.packaging_height || 0) * qty;
+      }
+    });
+
+    const dimensionStr = `${dimensions.length}*${dimensions.breadth}*${dimensions.height} CM`;
+    const weightStr = `${totalWeight.toFixed(2)} KG`;
+
+    // 5️⃣ Map items for template
+    const itemsData = order.items.map((item) => {
+      const prod = productMap[item.productId];
+      return {
+        name: item.productName || prod?.name || "-",
+        code: prod?.product_code || "-",
+        sku: prod?.sku_id || "-",
+        qty: item.quantity || 0,
+      };
+    });
+
+    // 6️⃣ Store logo Base64 convert karna
+    let storeLogo = order.store?.logo || "";
+    if (storeLogo.startsWith("http")) {
+      try {
+        storeLogo = await getBase64ImageFromUrl(storeLogo);
+      } catch (e) {
+        console.error("❌ Logo fetch failed:", e.message);
+        storeLogo = "";
+      }
     }
 
-    // Create PDF
-    const doc = new PDFDocument({ margin: 30 });
+    // 7️⃣ Prepare data object
+    const data = {
+      customer: {
+        name: `${order.customer?.first_name || ""} ${
+          order.customer?.last_name || ""
+        }`,
+        address: shipping.addressLine1 || "-",
+        city: shipping.city || "-",
+        state: shipping.state || "-",
+        pincode: shipping.pincode || "-",
+        phone: shipping.phone || "-",
+      },
+      store: {
+        name: order.store?.name || "-",
+        address: order.store?.address || "-",
+        gstin: order.store?.gst_number || "-",
+        logo: storeLogo, // ✅ Base64 logo
+      },
+      dimensions: dimensionStr,
+      weight: weightStr,
+      awb: order.trackingNumber || "-",
+      routingCode: "BAN/OKS",
+      paymentMethod: order.paymentMethod || "-",
+      invoiceNo: order.orderNumber || "-",
+      invoiceDate: order.createdAt
+        ? new Date(order.createdAt).toLocaleDateString()
+        : "-",
+      items: itemsData,
+    };
+
+    // 8️⃣ Compile Handlebars template
+    const templatePath = path.join(__dirname, "../templates/label.html");
+    const templateHtml = fs.readFileSync(templatePath, "utf8");
+    const template = Handlebars.compile(templateHtml);
+    const html = template(data);
+
+    // 9️⃣ Generate PDF
+    const browser = await puppeteer.launch({ headless: "new" });
+    const page = await browser.newPage();
+    await page.setContent(html, { waitUntil: "networkidle0" });
+    const pdfBuffer = await page.pdf({ format: "A6", printBackground: true });
+    await browser.close();
+
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader(
       "Content-Disposition",
       `attachment; filename=label-${id}.pdf`
     );
-    doc.pipe(res);
-
-    // Shopzeo Branding
-    doc.fontSize(18).text("Shopzeo Shipping Label", { align: "center" });
-    doc.moveDown();
-
-    // Store Info
-    doc.fontSize(12).text(`From: ${order.store?.name}`);
-    doc.text(`Address: ${order.store?.address || "-"}`);
-    doc.moveDown();
-
-    // Customer Info
-    doc
-      .fontSize(12)
-      .text(`To: ${order.customer?.first_name} ${order.customer?.last_name}`);
-    doc.text(`Address: ${order.shippingAddress?.addressLine1 || "-"}`);
-    doc.text(`Phone: ${order.customer?.phone || "-"}`);
-    doc.moveDown();
-
-    // Order Info
-    doc.text(`Order Number: ${order.orderNumber}`);
-    doc.text(`Payment: ${order.paymentMethod}`);
-    doc.text(`Status: ${order.status}`);
-
-    doc.end();
-  } catch (err) {
-    console.error("Label Error:", err);
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to generate label" });
+    res.end(pdfBuffer);
+  } catch (error) {
+    console.error("❌ generateLabel error:", error.message);
+    res.status(500).send("Internal Server Error");
   }
 };
+

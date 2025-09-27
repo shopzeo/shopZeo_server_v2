@@ -106,6 +106,7 @@ const paymentRoutes = require('./routes/payments');
 const trackOrderRoutes = require('./routes/trackOrder');
 const MappingSubcategoryRoute = require('./routes/MappingSubcategoryRoute');
 const bulkImportRoutes = require("./routes/bulkImport");
+const userRoutes = require("./routes/users");
 
 app.use('/api/auth', authRoutes);
 app.use('/api/user-auth', userAuthRoutes);
@@ -123,6 +124,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/track', trackOrderRoutes);
 app.use('/api/subcategories-item', MappingSubcategoryRoute);
 app.use("/api/products", bulkImportRoutes);
+app.use("/api/user",userRoutes);
 
 // Health Check रूट
 app.get('/health', (req, res) => {

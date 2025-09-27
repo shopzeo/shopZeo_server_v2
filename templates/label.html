@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Shipping Label</title>
+  <style>
+  body { font-family: Arial, sans-serif; font-size: 12px; margin: 0; padding: 8px; width: 420px; }
+  h2 { text-align: center; font-size: 18px; margin: 0 0 10px 0; font-weight: bold; }
+
+  .box { 
+    border: 1px solid #000; 
+    padding: 6px; 
+    margin-bottom: 16px; /* Increased gap between boxes */
+  }
+  .row { display: flex; justify-content: space-between; align-items: flex-start; }
+  .left { width: 65%; }
+  .right { width: 33%; text-align: right; }
+  .bold { font-weight: bold; }
+  .small { font-size: 11px; }
+  .center { text-align: center; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 4px; }
+  th, td { border: 1px solid #000; padding: 4px; text-align: left; }
+
+  .note { font-size: 10px; margin-top: 8px; border-top: 1px dashed #000; padding-top: 6px; }
+  .footer { font-size: 10px; text-align: center; margin-top: 8px; }
+  img { max-width: 80px; height: auto; }
+</style>
+
+</head>
+<body>
+  
+
+  <!-- Box 1: To + Logo -->
+  <div class="box row">
+    <div class="left">
+      <div class="bold">To:</div>
+      {{customer.name}}<br/>
+      {{customer.address}}, {{customer.city}}<br/>
+      {{customer.state}} - {{customer.pincode}}<br/>
+      M.No: {{customer.phone}}
+    </div>
+    <div class="right">
+      <img src="{{store.logo}}" alt="Store Logo"/>
+    </div>
+  </div>
+
+  <!-- Box 2: Dimensions + AWB -->
+  <div class="box row">
+    <div class="left">
+      <div><span class="bold">Dimensions:</span> {{dimensions}}</div>
+      <div><span class="bold">Weight:</span> {{weight}}</div>
+      <div><span class="bold">Payment:</span> {{paymentMethod}}</div>
+    </div>
+    <div class="right">
+      <div class="bold">AWB:</div>
+      <div style="font-size:16px; font-weight:bold;">{{awb}}</div>
+    </div>
+  </div>
+
+  <!-- Box 3: Routing -->
+  <div class="box center bold">
+    Routing Code: {{routingCode}}
+  </div>
+
+  <!-- Box 4: From -->
+  <div class="box">
+    <div class="bold">From:</div>
+    {{store.name}}<br/>
+    {{store.address}}<br/>
+    GST: {{store.gstin}}
+  </div>
+
+  <!-- Box 5: Invoice -->
+  <div class="box row small">
+    <div><b>Invoice No.:</b> {{invoiceNo}}</div>
+    <div><b>Invoice Date:</b> {{invoiceDate}}</div>
+  </div>
+
+  <!-- Box 6: Products -->
+  <div class="box">
+    <table>
+      <thead>
+        <tr>
+          <th>Product Name</th>
+          <th>Product Code</th>
+          <th>SKU ID</th>
+          <th>Qty</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{#each items}}
+        <tr>
+          <td>{{name}}</td>
+          <td>{{code}}</td>
+          <td>{{sku}}</td>
+          <td>{{qty}}</td>
+        </tr>
+        {{/each}}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Box 7: Note -->
+  <div class="box note">
+    NOTE: If outer packaging/label is found tempered/damaged, do not accept parcel.<br/>
+    All disputes are subject to Gujarat jurisdiction only.
+  </div>
+
+  <div class="footer">Powered By: Shopzeo</div>
+</body>
+</html>
