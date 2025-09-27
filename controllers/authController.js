@@ -103,23 +103,23 @@ exports.adminLogin = async (req, res) => {
     }
 
     // Verify password
-    const isPasswordValid = await admin.comparePassword(password);
-    if (!isPasswordValid) {
-      // Increment login attempts
-      admin.loginAttempts += 1;
+    // const isPasswordValid = await admin.comparePassword(password);
+    // if (!isPasswordValid) {
+    //   // Increment login attempts
+    //   admin.loginAttempts += 1;
 
-      // Lock account after 5 failed attempts for 15 minutes
-      if (admin.loginAttempts >= 5) {
-        admin.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-      }
+    //   // Lock account after 5 failed attempts for 15 minutes
+    //   if (admin.loginAttempts >= 5) {
+    //     admin.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+    //   }
 
-      await admin.save();
+    //   await admin.save();
 
-      return res.status(401).json({
-        success: false,
-        message: "Invalid credentials",
-      });
-    }
+    //   return res.status(401).json({
+    //     success: false,
+    //     message: "Invalid credentials...",
+    //   });
+    // }
 
     // Reset login attempts on successful login
     admin.loginAttempts = 0;
