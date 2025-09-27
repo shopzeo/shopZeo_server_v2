@@ -1,15 +1,15 @@
-const { Sequelize } = require('sequelize');
-require('dotenv').config();
+const { Sequelize } = require("sequelize");
+require("dotenv").config();
 
 const sequelize = new Sequelize(
-  process.env.DB_NAME || 'shopzeo_db',
-  process.env.DB_USER || 'root',
-  process.env.DB_PASSWORD || '',
+  process.env.DB_NAME || "shopzeo_admin",
+  process.env.DB_USER || "root",
+  process.env.DB_PASSWORD || "",
   {
-    host: process.env.DB_HOST || 'localhost',
+    host: process.env.DB_HOST || "localhost",
     port: process.env.DB_PORT || 3306,
-    dialect: 'mysql',
-    logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    dialect: "mysql",
+    logging: process.env.NODE_ENV === "development" ? console.log : false,
     pool: {
       max: 40,
       min: 0,
@@ -17,34 +17,34 @@ const sequelize = new Sequelize(
       idle: 10000,
       evict: 1000,
     },
-      retry: {
-        max: 3, // Retry a connection up to 3 times
-        match: [
-          /ETIMEDOUT/,
-          /EHOSTUNREACH/,
-          /ECONNRESET/,
-          /ECONNREFUSED/,
-          /ETIMEDOUT/,
-          /ESOCKETTIMEDOUT/,
-          /EHOSTUNREACH/,
-          /EPIPE/,
-          /EAI_AGAIN/,
-          /SequelizeConnectionError/,
-          /SequelizeConnectionRefusedError/,
-          /SequelizeHostNotFoundError/,
-          /SequelizeHostNotReachableError/,
-          /SequelizeInvalidConnectionError/,
-          /SequelizeConnectionTimedOutError/
-        ],
-        backoffBase: 100,
-        backoffExponent: 1.1
-      },
-    
+    retry: {
+      max: 3, // Retry a connection up to 3 times
+      match: [
+        /ETIMEDOUT/,
+        /EHOSTUNREACH/,
+        /ECONNRESET/,
+        /ECONNREFUSED/,
+        /ETIMEDOUT/,
+        /ESOCKETTIMEDOUT/,
+        /EHOSTUNREACH/,
+        /EPIPE/,
+        /EAI_AGAIN/,
+        /SequelizeConnectionError/,
+        /SequelizeConnectionRefusedError/,
+        /SequelizeHostNotFoundError/,
+        /SequelizeHostNotReachableError/,
+        /SequelizeInvalidConnectionError/,
+        /SequelizeConnectionTimedOutError/,
+      ],
+      backoffBase: 100,
+      backoffExponent: 1.1,
+    },
+
     define: {
       timestamps: true,
       underscored: true,
-      freezeTableName: true
-    }
+      freezeTableName: true,
+    },
   }
 );
 
@@ -52,13 +52,12 @@ const sequelize = new Sequelize(
 const testConnection = async () => {
   try {
     await sequelize.authenticate();
-    console.log(' Database connection established successfully.');
-    
+    console.log(" Database connection established successfully.");
+
     // Don't sync models automatically - tables already exist
-    console.log(' Database connection ready.');
-    
+    console.log(" Database connection ready.");
   } catch (error) {
-    console.error(' Unable to connect to the database:', error);
+    console.error(" Unable to connect to the database:", error);
   }
 };
 
